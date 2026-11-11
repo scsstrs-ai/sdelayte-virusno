@@ -450,7 +450,7 @@
     if (e.key === 'ArrowRight') keys.R = false;
   });
 
-  K.mount({ room: 'Комната 206 · Отдел продаж', game: 'Воронка', stats: [['score', 'Очки', 0], ['best', 'Рекорд']] });
+  K.mount({ room: 'Двор · Кофейня «Воронка»', game: 'Воронка', stats: [['score', 'Очки', 0], ['best', 'Рекорд']] });
   var again = K.action('Сначала', function () {
     again.blur();
     if (!S || S.over || S.score === 0 || confirm('Начать заново? Очки этой партии сгорят.')) { K.closeCard(); start(); }

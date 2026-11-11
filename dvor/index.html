@@ -35,7 +35,7 @@
   var K = window.Kit, shade = Iso.shade, hash = Iso.hash;
   var stage = document.getElementById('stage'), cv = document.getElementById('cv'), actBtn = document.getElementById('act');
   var COLS = 24, ROWS = 20;
-  var READY = { 'kontent-plan': 1, pravki: 1, kpi: 1, soglasovanie: 1, kommentarii: 1, voronka: 0 };
+  var READY = { 'kontent-plan': 1, pravki: 1, kpi: 1, soglasovanie: 1, kommentarii: 1, voronka: 1 };
 
   var W = new Iso.World({
     canvas: cv, stage: stage, cols: COLS, rows: ROWS, ext: 3, top: 215, start: [12.5, 4.4], minZoom: (window.innerWidth > 700 ? 0.5 : 0.62), maxZoom: 1.05, bg: '#5E9B49', font: K.FONT,
