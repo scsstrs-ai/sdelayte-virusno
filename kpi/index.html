@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Три KPI в ряд · Сделайте вирусно</title>
-<meta name="description" content="Три в ряд из маркетинговых показателей: закройте квартал, пока Палыч не поменял KPI.">
+<meta name="description" content="Три в ряд из маркетинговых показателей: закройте квартал, пока Борис не поменял KPI.">
 <meta name="theme-color" content="#E62020">
 <link rel="icon" href="../kit/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -52,14 +52,14 @@
     { n: 'ЛИДЫ', c: '#E62020' }
   ];
   var WIN = [
-    'Палыч: «Отлично. В следующем квартале план плюс тридцать процентов».',
-    'Палыч: «Хорошо. А почему продажи не выросли?»',
-    'Отчёт сдан. Палыч прочитал первый слайд и сказал «нормально».'
+    'Борис: «Отлично. В следующем квартале план плюс тридцать процентов».',
+    'Борис: «Хорошо. А почему продажи не выросли?»',
+    'Отчёт сдан. Борис прочитал первый слайд и сказал «нормально».'
   ];
   var LOSE = [
-    'Палыч: «KPI были амбициозные, но реалистичные».',
-    'Палыч: «Премии не будет, но вы держитесь».',
-    'Палыч: «Жду от вас план улучшений. На двадцать слайдов»'
+    'Борис: «KPI были амбициозные, но реалистичные».',
+    'Борис: «Премии не будет, но вы держитесь».',
+    'Борис: «Жду от вас план улучшений. На двадцать слайдов»'
   ];
   var CASCADE = ['Само выросло, никто не понял почему', 'Органика пошла', 'Алгоритмы вас заметили', 'Сарафанное радио работает'];
   function spec(L) {
@@ -222,8 +222,8 @@
     var free = KP.map(function (_, i) { return i; }).filter(function (i) { return used.indexOf(i) < 0; });
     var nk = K.rand(free), old = g.k;
     g.k = nk; g.have = 0; g.need = Math.max(6, Math.ceil(g.need * 0.7)); g.fresh = true;
-    K.toast('Палыч поменял KPI: теперь важен не ' + KP[old].n + ', а ' + KP[nk].n, 4200);
-    capEl.textContent = 'Палыч вернулся со стратсессии. ' + KP[old].n + ' больше никого не интересует.';
+    K.toast('Борис поменял KPI: теперь важен не ' + KP[old].n + ', а ' + KP[nk].n, 4200);
+    capEl.textContent = 'Борис вернулся со стратсессии. ' + KP[old].n + ' больше никого не интересует.';
     renderGoals();
   }
   function win() {
@@ -246,7 +246,7 @@
     var sp = spec(L), ks = K.shuffle(KP.map(function (_, i) { return i; })).slice(0, sp.ng);
     S = { level: L, moves: sp.moves, used: 0, twisted: false, over: false, goals: ks.map(function (k) { return { k: k, need: sp.target, have: 0 }; }) };
     fillBoard(); phase = 'idle'; sel = -1;
-    capEl.textContent = sp.twist ? qname(L) + '. Палыч уехал на стратегическую сессию. Это не к добру.' : qname(L) + '. Соберите показатели по плану.';
+    capEl.textContent = sp.twist ? qname(L) + '. Борис уехал на стратегическую сессию. Это не к добру.' : qname(L) + '. Соберите показатели по плану.';
     renderGoals(); hud(); save(); dirty = true;
   }
   function save() { if (S.over) return; K.set(KEY + ':state', { S: S, g: grid.map(function (t) { return t ? [t.k, t.b ? 1 : 0] : null; }) }); }
@@ -364,7 +364,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { dirty = true; });
   requestAnimationFrame(loop);
   if (!K.get('seen:' + KEY, false)) {
-    K.card({ stamp: 'Спортплощадка', title: 'Три KPI в ряд', text: 'Квартал начался, план утверждён. Меняйте местами соседние показатели и собирайте по три одинаковых в ряд. Выполните KPI до конца ходов. В третьем квартале Палыч уезжает на стратегическую сессию, и KPI могут поменяться.',
+    K.card({ stamp: 'Спортплощадка', title: 'Три KPI в ряд', text: 'Квартал начался, план утверждён. Меняйте местами соседние показатели и собирайте по три одинаковых в ряд. Выполните KPI до конца ходов. В третьем квартале Борис уезжает на стратегическую сессию, и KPI могут поменяться.',
       btns: [['Начать квартал', function () { K.set('seen:' + KEY, true); }]] });
   }
   window.__g = { get S() { return S; }, get grid() { return grid; }, start: start, swap: trySwap, validSwaps: validSwaps, findRuns: findRuns, setFast: function (v) { fast = v; }, get phase() { return phase; } };

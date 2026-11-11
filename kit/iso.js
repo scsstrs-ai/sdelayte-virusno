@@ -27,7 +27,7 @@
     W.o = o; W.cols = o.cols; W.rows = o.rows; W.ext = o.ext || 0; W.top = o.top || 160;
     W.cv = o.canvas; W.ctx = W.cv.getContext('2d'); W.stage = o.stage;
     W.solid = []; for (var y = 0; y < W.rows; y++) W.solid.push(new Array(W.cols).fill(false));
-    W.props = []; W.npcs = []; W.spots = []; W.lights = []; W.bubbles = [];
+    W.props = []; W.npcs = []; W.spots = []; W.lights = []; W.bubbles = []; W.edges = {};
     W.player = { x: o.start[0], y: o.start[1], look: o.look, face: 1, flip: 1, walk: 0, path: null, pending: null, moving: false, me: true };
     W.cam = { x: 0, y: 0 }; W.zoom = 1; W.vw = 300; W.vh = 300; W.dpr = 1; W.t = 0;
     W.keys = {}; W.night = false; W.near = null; W.hoverSpot = null; W.tap = null; W.paused = false; W.chatAt = 4;
@@ -41,8 +41,38 @@
   P.walk = function (x, y) { return this.inb(x, y) && !this.solid[y][x]; };
   P.block = function (x0, y0, x1, y1) { for (var y = y0; y <= (y1 == null ? y0 : y1); y++) for (var x = x0; x <= (x1 == null ? x0 : x1); x++) if (this.inb(x, y)) this.solid[y][x] = true; };
   P.free = function (x, y, r) {
-    return this.walk(Math.floor(x - r), Math.floor(y - r)) && this.walk(Math.floor(x + r), Math.floor(y - r)) &&
-      this.walk(Math.floor(x - r), Math.floor(y + r)) && this.walk(Math.floor(x + r), Math.floor(y + r));
+    if (!(this.walk(Math.floor(x - r), Math.floor(y - r)) && this.walk(Math.floor(x + r), Math.floor(y - r)) &&
+      this.walk(Math.floor(x - r), Math.floor(y + r)) && this.walk(Math.floor(x + r), Math.floor(y + r)))) return false;
+    var E = this.edges, fx = Math.floor(x), fy = Math.floor(y);
+    for (var gx = fx; gx <= fx + 1; gx++) for (var gy = Math.floor(y - r) - 1; gy <= Math.floor(y + r) + 1; gy++) {
+      if (E["v:" + gx + ":" + gy]) { var dy = Math.max(0, gy - y, y - (gy + 1)); if (Math.hypot(x - gx, dy) < r + 0.02) return false; }
+    }
+    for (gy = fy; gy <= fy + 1; gy++) for (gx = Math.floor(x - r) - 1; gx <= Math.floor(x + r) + 1; gx++) {
+      if (E["h:" + gx + ":" + gy]) { var dx = Math.max(0, gx - x, x - (gx + 1)); if (Math.hypot(y - gy, dx) < r + 0.02) return false; }
+    }
+    return true;
+  };
+  P.step = function (cx, cy, dx, dy) { // можно ли шагнуть из клетки в соседнюю, не пройдя сквозь стену
+    var E = this.edges;
+    if (dx && dy) return this.step(cx, cy, dx, 0) && this.step(cx + dx, cy, 0, dy) && this.step(cx, cy, 0, dy) && this.step(cx, cy + dy, dx, 0);
+    if (dx) return !E["v:" + (dx > 0 ? cx + 1 : cx) + ":" + cy];
+    return !E["h:" + cx + ":" + (dy > 0 ? cy + 1 : cy)];
+  };
+  // стена по линии сетки: (x0,y0)-(x1,y1), o: {h, col, top, gaps:[начала пропусков], key}
+  P.wall = function (x0, y0, x1, y1, o) {
+    var W = this; o = o || {};
+    var horiz = y0 === y1, a = horiz ? Math.min(x0, x1) : Math.min(y0, y1), b = horiz ? Math.max(x0, x1) : Math.max(y0, y1);
+    var h = o.h || 26, col = o.col || "#EDE6DA", top = o.top || "#FFFFFF", gaps = o.gaps || [];
+    for (var u = a; u < b; u++) {
+      if (gaps.indexOf(u) >= 0) continue;
+      var key = horiz ? "h:" + u + ":" + y0 : "v:" + x0 + ":" + u;
+      if (W.edges[key]) continue;
+      W.edges[key] = 1;
+      (function (u) {
+        if (horiz) W.prop(u + 0.5 + y0 + (o.dk || 0), function () { W.box(u, y0 - 0.06, 0, 1, 0.12, h, col, { top: top, left: col, right: shade(col, -0.14) }); });
+        else W.prop(x0 + u + 0.5 + (o.dk || 0), function () { W.box(x0 - 0.06, u, 0, 0.12, 1, h, col, { top: top, left: shade(col, -0.07), right: shade(col, -0.16) }); });
+      })(u);
+    }
   };
   P.prop = function (k, fn) { this.props.push({ k: k, d: fn }); };
 
@@ -193,6 +223,7 @@
         var dx = DIRS[di][0], dy = DIRS[di][1], nx = cx + dx, ny = cy + dy;
         if (!W.walk(nx, ny)) continue;
         if (dx && dy && (!W.walk(cx + dx, cy) || !W.walk(cx, cy + dy))) continue;
+        if (!W.step(cx, cy, dx, dy)) continue;
         var nk = key(nx, ny); if (closed[nk]) continue;
         var ng = g[cur] + (dx && dy ? 1.414 : 1);
         if (g[nk] === undefined || ng < g[nk]) { g[nk] = ng; f[nk] = ng + h(nx, ny); came[nk] = cur; if (open.indexOf(nk) < 0) open.push(nk); }
@@ -210,7 +241,20 @@
     if (Math.hypot(p.x - s.x, p.y - s.y) < 0.45) { this.arrive(s); return; }
     this.goTo(s.x, s.y, s);
   };
-  P.arrive = function (s) { if (this.o.onSpot) this.o.onSpot(s); };
+  P.arrive = function (s) { if (s && s.look) { if (this.o.onTalk) this.o.onTalk(s); else this.talk(s); } else if (this.o.onSpot) this.o.onSpot(s); };
+  P.goNpc = function (n) {
+    var p = this.player, ax = n.ax != null ? n.ax : null, ay = n.ay;
+    if (ax == null) {
+      var best = null, bd = 1e9, cx = Math.floor(n.x), cy = Math.floor(n.y);
+      for (var yy = cy - 1; yy <= cy + 1; yy++) for (var xx = cx - 1; xx <= cx + 1; xx++) {
+        if ((xx === cx && yy === cy) || !this.walk(xx, yy)) continue;
+        var d = Math.hypot(xx + 0.5 - p.x, yy + 0.5 - p.y); if (d < bd) { bd = d; best = [xx + 0.5, yy + 0.5]; }
+      }
+      if (!best) { this.arrive(n); return; } ax = best[0]; ay = best[1];
+    }
+    if (Math.hypot(p.x - ax, p.y - ay) < 0.5 || Math.hypot(p.x - n.x, p.y - n.y) < 1.3) { this.arrive(n); return; }
+    if (!this.goTo(ax, ay, n)) this.arrive(n);
+  };
   P.say = function (n, text, ms) {
     this.bubbles = this.bubbles.filter(function (b) { return b.n !== n; });
     this.bubbles.push({ n: n, text: text, until: this.t + (ms || 4200) / 1000 });
@@ -271,7 +315,8 @@
       n.flip = sx2 > 0 ? 1 : -1; n.face = sy2 < 0 ? -1 : 1; n.moving = true; n.walk = (n.walk || 0) + dt * 9;
     });
     var near = null, nd = 1e9;
-    W.spots.forEach(function (s) { var d2 = Math.hypot(p.x - s.x, p.y - s.y); if (d2 < (s.r || 1.25) && d2 < nd) { nd = d2; near = s; } });
+    W.spots.forEach(function (s) { if (s.off) return; var d2 = Math.hypot(p.x - s.x, p.y - s.y); if (d2 < (s.r || 1.25) && d2 < nd) { nd = d2; near = s; } });
+    W.npcs.forEach(function (n) { if (!n.talkable) return; var d3 = Math.hypot(p.x - n.x, p.y - n.y); if (d3 < 1.45 && d3 < nd) { nd = d3; near = n; } });
     if (near !== W.near) { W.near = near; if (W.o.onNear) W.o.onNear(near); }
     W.chatAt -= dt;
     if (W.chatAt <= 0) {
@@ -323,7 +368,17 @@
     // подписи мест
     var FONT = W.o.font || "Onest, 'Segoe UI', sans-serif";
     W.spots.forEach(function (s) {
-      if (!s.game) return;
+      if (s.off) return;
+      if (!s.game && s.label && (s === W.near || s === W.hoverSpot || s.mark)) {
+        var la = W.iso(s.tx != null ? s.tx : s.x, s.ty != null ? s.ty : s.y, s.tz || 40), ls = W.toScreen(la[0], la[1]);
+        c.font = "700 11.5px " + FONT; var lw = c.measureText(s.label).width + (s.mark ? 34 : 18), lx = ls[0] - lw / 2, ly = ls[1] - 30 + Math.sin(W.t * 2.4 + (s.seed || 0) * 5) * 1.5;
+        c.fillStyle = "rgba(0,0,0,.2)"; rr(c, lx + 1, ly + 2, lw, 24, 12); c.fill();
+        c.fillStyle = s.mark ? "#FFD447" : "#FFFFFF"; rr(c, lx, ly, lw, 24, 12); c.fill();
+        c.fillStyle = "#1C1313"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText((s.mark ? s.mark + "  " : "") + s.label, ls[0], ly + 12.5);
+        s.rect = [lx, ly, lw, 30];
+        return;
+      }
+      if (!s.game) { s.rect = null; return; }
       var a = W.iso(s.tx, s.ty, s.tz), sc = W.toScreen(a[0], a[1]), hot = s === W.near || s === W.hoverSpot;
       c.font = '700 10px ' + FONT; var w1 = c.measureText(s.place.toUpperCase()).width;
       c.font = '800 13px ' + FONT; var w2 = c.measureText(s.game).width;
@@ -337,6 +392,21 @@
       if (s.badge) { c.fillStyle = '#FFD447'; rr(c, x + w - 16, y - 7, 22, 15, 7); c.fill(); c.fillStyle = '#1C1313'; c.font = '800 9px ' + FONT; c.fillText(s.badge, x + w - 5, y + 0.5); }
       s.rect = [x, y, w, h + 8];
     });
+    // маркеры заданий над людьми
+    W.npcs.forEach(function (n) {
+      if (!n.mark || n.pose === "hidden") return;
+      var a = W.iso(n.x, n.y, (n.z || 0) + (n.pose === "sit" ? 62 : 72)), sc = W.toScreen(a[0], a[1]), by = sc[1] - 10 + Math.sin(W.t * 3 + (n.look && n.look.seed || 0)) * 3;
+      c.fillStyle = "rgba(0,0,0,.25)"; c.beginPath(); c.arc(sc[0] + 1, by + 2, 11, 0, 7); c.fill();
+      c.fillStyle = n.mark === "!" ? "#FFD447" : "#FFFFFF"; c.beginPath(); c.arc(sc[0], by, 11, 0, 7); c.fill();
+      c.strokeStyle = "#E62020"; c.lineWidth = 2.5; c.stroke();
+      c.fillStyle = "#E62020"; c.font = "800 14px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(n.mark, sc[0], by + 1);
+    });
+    if (W.near && W.near.look && W.near.talkable) {
+      var nn = W.near, na = W.iso(nn.x, nn.y, (nn.z || 0) + (nn.pose === "sit" ? 50 : 60)), ns = W.toScreen(na[0], na[1]);
+      c.font = "700 11px " + FONT; var nw = c.measureText(nn.name || "").width + 16;
+      c.fillStyle = "rgba(28,19,19,.85)"; rr(c, ns[0] - nw / 2, ns[1] - (nn.mark ? 46 : 24), nw, 20, 10); c.fill();
+      c.fillStyle = "#FFFFFF"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(nn.name || "", ns[0], ns[1] - (nn.mark ? 36 : 14));
+    }
     // реплики
     W.bubbles.forEach(function (b) {
       var n = b.n, a = W.iso(n.x, n.y, (n.z || 0) + (n.pose === 'sit' ? 48 : n.pose === 'hidden' ? 30 : 58)), sc = W.toScreen(a[0], a[1]);
@@ -393,7 +463,7 @@
   P.click = function (sx, sy) {
     if (this.o.blocked && this.o.blocked()) return;
     var s = this.spotAt(sx, sy); if (s) { this.goSpot(s); return; }
-    var n = this.npcAt(sx, sy); if (n) { this.talk(n); return; }
+    var n = this.npcAt(sx, sy); if (n) { if (n.talkable) this.goNpc(n); else this.talk(n); return; }
     var t = this.toTile(sx, sy); this.goTo(t[0], t[1]);
   };
   P.start = function () {

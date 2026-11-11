@@ -1,0 +1,63 @@
+/* Квест: диалоги, журнал задания, шкалы */
+.kit-stage.iso{padding:0;background:#3C3430;display:block}
+.kit-stage.iso canvas{position:absolute;inset:0;touch-action:manipulation}
+.act{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:5;border:0;border-radius:99px;background:#E62020;color:#fff;font:700 14px var(--font);padding:11px 18px;box-shadow:0 8px 20px rgba(0,0,0,.3);cursor:pointer;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+.act:hover{background:#B3121A}
+.act kbd{font-family:inherit;background:rgba(255,255,255,.24);border-radius:6px;padding:1px 7px;margin-right:8px}
+@media (pointer:coarse){.act kbd{display:none}}
+
+.kv-bar{display:inline-block;width:96px;height:10px;border-radius:99px;background:var(--veil);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.6);overflow:hidden;vertical-align:middle;margin-right:7px}
+.kv-bar i{display:block;height:100%;background:#fff;border-radius:99px;transition:width .35s ease}
+.kv-bar.low i{background:#FFD447}
+.kv-up{animation:kvUp .6s ease-out}.kv-down{animation:kvDown .6s ease-out}
+@keyframes kvUp{30%{color:#B7FFCB;transform:scale(1.06)}}
+@keyframes kvDown{30%{color:#FFD447;transform:translateX(-3px)}60%{transform:translateX(3px)}}
+
+.kv-log{position:absolute;left:12px;top:12px;z-index:6;background:rgba(255,255,255,.95);color:#1C1313;border-radius:16px;padding:11px 13px 12px;width:min(290px,calc(100% - 24px));font-size:12.5px;line-height:1.35;box-shadow:0 8px 22px rgba(0,0,0,.22);cursor:pointer}
+.kv-log h4{margin:2px 0 4px;font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+.kv-when{color:#8A7470;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.kv-sub{margin:4px 0 0;color:#5A4A47}
+.kv-log ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.kv-log li{position:relative;padding-left:20px}
+.kv-log li::before{content:"";position:absolute;left:0;top:2px;width:12px;height:12px;border-radius:50%;border:2px solid #E62020;box-sizing:border-box}
+.kv-log li.done{color:#9A8A86;text-decoration:line-through}
+.kv-log li.done::before{background:#E62020}
+.kv-log li.cur{font-weight:800}
+.kv-tip{margin:8px 0 0;padding:7px 9px;background:#FFF4C2;border-radius:10px;font-weight:600}
+.kv-items{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.kv-items span{background:#1C1313;color:#fff;border-radius:99px;padding:3px 9px;font-size:11px;font-weight:700}
+.kv-log.min ul,.kv-log.min .kv-tip,.kv-log.min .kv-items,.kv-log.min .kv-sub{display:none}
+
+.kv-dlg{position:absolute;left:12px;right:12px;bottom:12px;z-index:9;max-width:780px;margin:0 auto;background:var(--panel);color:var(--panel-ink);border-radius:20px;box-shadow:0 16px 40px rgba(0,0,0,.38);padding:14px 16px 14px;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;max-height:min(70%,560px);overflow:auto;animation:kvIn .18s ease-out}
+@keyframes kvIn{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+.kv-ava{grid-row:span 2;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:16px;box-shadow:0 0 0 3px var(--soft)}
+.kv-who{align-self:end}
+.kv-who b{font-weight:800;font-size:15.5px}
+.kv-who span{color:var(--muted);font-size:12.5px;margin-left:8px}
+.kv-text{font-size:15.5px;line-height:1.45;white-space:pre-line;align-self:start;margin-bottom:10px}
+.kv-ch{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
+.kv-ch button{display:flex;gap:10px;align-items:flex-start;text-align:left;font:inherit;font-weight:600;font-size:14.5px;line-height:1.35;border:0;border-radius:12px;padding:10px 12px;background:var(--soft);color:var(--panel-ink);cursor:pointer}
+.kv-ch button:hover,.kv-ch button:focus-visible{background:var(--red);color:#fff;outline:none}
+.kv-ch button i{font-style:normal;font-weight:800;color:var(--red);min-width:12px}
+.kv-ch button:hover i,.kv-ch button:focus-visible i{color:#fff}
+.kv-ch small{display:block;font-weight:500;font-size:12px;opacity:.75;margin-top:2px}
+
+.kv-menu .kit-card{max-width:620px;text-align:left;max-height:calc(100% - 8px);overflow:auto}
+.kv-menu .kit-stamp{margin-bottom:10px}
+.kv-qs{list-style:none;margin:6px 0 10px;padding:0;display:flex;flex-direction:column;gap:8px}
+.kv-qs li{display:grid;grid-template-columns:78px 1fr auto;gap:10px;align-items:center;background:rgba(255,255,255,.13);border-radius:14px;padding:10px 12px}
+.kv-qs .kv-g{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;opacity:.9}
+.kv-qs b{display:block;font-size:15px;line-height:1.2}
+.kv-qs small{display:block;font-size:12px;opacity:.85;margin-top:2px}
+.kv-qs li.lock{opacity:.55}
+.kv-qs li.done b::after{content:" ✓"}
+.kv-qs .kit-btn{font-size:13px;padding:8px 14px}
+.kv-note{font-size:13px;opacity:.9;margin:0 0 12px}
+@media (max-width:560px){
+  .kv-log{font-size:11.5px;width:min(240px,calc(100% - 24px))}
+  .kv-dlg{left:8px;right:8px;bottom:8px;padding:12px}
+  .kv-text{font-size:14.5px}
+  .kv-ch button{font-size:13.5px;padding:9px 10px}
+  .kv-qs li{grid-template-columns:1fr auto}
+  .kv-qs .kv-g{grid-column:1/-1}
+}
