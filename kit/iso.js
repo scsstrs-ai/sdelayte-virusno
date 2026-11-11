@@ -4,7 +4,9 @@
   var TW = 64, TH = 32, R2 = Math.SQRT2;
 
   function shade(hex, k) {
-    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    var r, g, b;
+    if (hex.charAt(0) === '#') { var n = parseInt(hex.slice(1), 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; }
+    else { var m = hex.match(/[d.]+/g) || [0, 0, 0]; r = +m[0]; g = +m[1]; b = +m[2]; }
     if (k >= 0) { r += (255 - r) * k; g += (255 - g) * k; b += (255 - b) * k; } else { r *= 1 + k; g *= 1 + k; b *= 1 + k; }
     return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';
   }
@@ -462,8 +464,8 @@
   };
   P.click = function (sx, sy) {
     if (this.o.blocked && this.o.blocked()) return;
-    var s = this.spotAt(sx, sy); if (s) { this.goSpot(s); return; }
     var n = this.npcAt(sx, sy); if (n) { if (n.talkable) this.goNpc(n); else this.talk(n); return; }
+    var s = this.spotAt(sx, sy); if (s) { this.goSpot(s); return; }
     var t = this.toTile(sx, sy); this.goTo(t[0], t[1]);
   };
   P.start = function () {
