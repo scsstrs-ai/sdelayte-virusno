@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Комментарии · Сделайте вирусно</title>
+<meta name="description" content="Сапёр про модерацию: разворачивайте комментарии под постом бренда и прячьте хейтеров, пока скриншот не ушёл генеральному.">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="../kit/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+:root{--km-closed:#EBDDD9;--km-edge:#D3BEB9;--km-hov:#F3E8E5;--km-skel:rgba(28,19,19,.16);--km-open:#FFFBFA;--km-oline:#EEE0DC;--km-flag:#FFD8D1;--km-flag-ink:#E62020;
+  --n1:#2F5BD3;--n2:#1E9E62;--n3:#E62020;--n4:#8E44D8;--n5:#C2410C;--n6:#0E8FA3;--n7:#1C1313;--n8:#76615E}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--km-closed:#47332F;--km-edge:#2A1C1A;--km-hov:#553E3A;--km-skel:rgba(246,235,233,.2);--km-open:#2C2120;--km-oline:#3D2C2A;--km-flag:#5C2622;--km-flag-ink:#FF8A7E;
+  --n1:#88A8FF;--n2:#5BD69A;--n3:#FF7A70;--n4:#C99BFF;--n5:#FFA25E;--n6:#5CD6E8;--n7:#F6EBE9;--n8:#BFA7A3}}
+:root[data-theme="dark"]{--km-closed:#47332F;--km-edge:#2A1C1A;--km-hov:#553E3A;--km-skel:rgba(246,235,233,.2);--km-open:#2C2120;--km-oline:#3D2C2A;--km-flag:#5C2622;--km-flag-ink:#FF8A7E;
+  --n1:#88A8FF;--n2:#5BD69A;--n3:#FF7A70;--n4:#C99BFF;--n5:#FFA25E;--n6:#5CD6E8;--n7:#F6EBE9;--n8:#BFA7A3}
+
+.km{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.post{flex:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ava who chip" "ava txt chip";column-gap:10px;row-gap:2px;align-items:center;max-width:100%}
+.ava{grid-area:ava;width:38px;height:38px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;letter-spacing:-.02em}
+.who{grid-area:who;align-self:end;font-size:13.5px;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who i{font-style:normal;font-weight:500;color:var(--muted)}
+.who i::before{content:"· "}
+.ptxt{grid-area:txt;align-self:start;margin:0;font-size:13px;line-height:1.32;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.chip{grid-area:chip;font-weight:700;font-size:12.5px;border:0;border-radius:99px;padding:8px 13px;background:var(--soft);color:var(--red-deep);cursor:pointer;white-space:nowrap}
+.chip:hover{filter:brightness(.96)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip{color:#FFB8B0}}
+:root[data-theme="dark"] .chip{color:#FFB8B0}
+
+.field{flex:none;display:grid;gap:var(--gap,3px);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:filter .2s}
+.field.blur{filter:blur(7px)}
+.k{position:relative;width:var(--cs);height:var(--cs);border:0;padding:0;margin:0;font-family:var(--font);color:var(--panel-ink);cursor:pointer;display:grid;place-items:center;
+  border-radius:calc(var(--cs)*.34) calc(var(--cs)*.34) calc(var(--cs)*.34) calc(var(--cs)*.07);background:var(--km-closed);
+  box-shadow:inset 0 calc(var(--cs)*-.075) 0 var(--km-edge);-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+.k.c::before,.k.c::after{content:"";position:absolute;left:21%;height:calc(var(--cs)*.085);border-radius:9px;background:var(--km-skel)}
+.k.c::before{top:28%;width:56%}
+.k.c::after{top:47%;width:34%}
+.k.c:active{transform:scale(.93)}
+@media (hover:hover){.k.c:hover{background:var(--km-hov)}.k.f:hover{filter:brightness(1.04)}}
+.k.o{background:var(--km-open);box-shadow:inset 0 0 0 1px var(--km-oline);border-radius:calc(var(--cs)*.2);cursor:default;font-weight:800;font-size:calc(var(--cs)*.5);line-height:1;font-variant-numeric:tabular-nums}
+.k.o[class*=" n"]{cursor:pointer}
+.k.n1{color:var(--n1)}.k.n2{color:var(--n2)}.k.n3{color:var(--n3)}.k.n4{color:var(--n4)}.k.n5{color:var(--n5)}.k.n6{color:var(--n6)}.k.n7{color:var(--n7)}.k.n8{color:var(--n8)}
+.k svg{width:60%;height:60%;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.k svg .g{stroke:var(--km-flag);stroke-width:6}
+.k svg .d{fill:currentColor;stroke:none}
+.k.f{background:var(--km-flag);color:var(--km-flag-ink);box-shadow:inset 0 calc(var(--cs)*-.075) 0 rgba(179,18,26,.28)}
+.k.m{background:var(--red);color:#fff;box-shadow:inset 0 calc(var(--cs)*-.075) 0 var(--red-deep);cursor:default}
+.k.m.boom{background:var(--red-deep);box-shadow:0 0 0 3px #FFD447;z-index:1;animation:kmShake .45s ease-in-out}
+.k.x{background:var(--km-open);color:var(--muted);box-shadow:inset 0 0 0 2px var(--red);border-radius:calc(var(--cs)*.2);cursor:default}
+.k.x svg .g{stroke:var(--km-open)}
+.k.hold{animation:kmHold .4s linear forwards}
+.k.peek{background:var(--km-hov);box-shadow:inset 0 0 0 2px var(--muted)}
+.k.wv{animation:kmOpen .28s ease-out backwards}
+.k.mv{animation:kmPop .32s ease-out backwards}
+.k:focus-visible{outline:3px solid #FFD447;outline-offset:1px;z-index:2}
+@keyframes kmOpen{from{background:var(--km-closed);color:transparent;transform:scale(.8)}}
+@keyframes kmPop{from{transform:scale(.35);opacity:0}}
+@keyframes kmHold{to{box-shadow:inset 0 0 0 3px var(--red)}}
+@keyframes kmShake{0%,100%{transform:none}20%{transform:translateX(-3px) rotate(-6deg)}40%{transform:translateX(3px) rotate(5deg)}60%{transform:translateX(-2px) rotate(-3deg)}80%{transform:translateX(2px)}}
+
+.bar{flex:none;display:flex;align-items:center;gap:10px;max-width:100%}
+.mode{flex:none;display:flex;background:var(--cell);border-radius:99px;padding:3px}
+.mode button{border:0;background:transparent;color:var(--panel-ink);font-weight:700;font-size:13px;padding:7px 13px;border-radius:99px;cursor:pointer;white-space:nowrap}
+.mode button[aria-pressed="true"]{background:var(--red);color:#fff}
+.mode button:focus-visible,.chip:focus-visible{outline:3px solid #FFD447;outline-offset:2px}
+.cap{flex:1;min-width:0;margin:0;font-size:12.5px;line-height:1.3;color:var(--muted);min-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cap b{color:var(--panel-ink);font-weight:700}
+/* выбор поста: широкие кнопки с подписью */
+#kitOver .kit-card-btns.km-pick{flex-direction:column;align-items:stretch}
+#kitOver .km-pick .kit-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 16px;white-space:normal}
+#kitOver .km-pick .kit-btn small{font-size:12px;font-weight:500;opacity:.88;line-height:1.25}
+#kitOver .km-pick .kit-btn.km-back{background:none;box-shadow:none;color:#fff;text-decoration:underline;text-underline-offset:3px;font-size:14px;padding:6px}
+@media (max-width:560px){
+  .km{gap:8px}
+  .post{grid-template-areas:"ava who chip" "txt txt txt";row-gap:5px}
+  .ava{width:32px;height:32px;font-size:16px}
+  .who{align-self:center;font-size:12.5px;white-space:normal;line-height:1.15}
+  .who i{display:block;font-size:11.5px;margin-top:1px}
+  .who i::before{content:none}
+  .ptxt{font-size:12px}
+  .chip{padding:7px 11px;font-size:12px}
+  .mode button{font-size:12.5px;padding:6px 10px}
+  .cap{font-size:12px}
+}
+@media (prefers-reduced-motion: reduce){.k.wv,.k.mv,.k.boom,.k.hold{animation:none}.field{transition:none}}
+</style>
+</head>
+<body>
+<div class="kit-wrap fill">
+  <header class="kit-top" id="kitTop"></header>
+  <div class="kit-stats" id="kitStats"></div>
+  <main class="kit-stage" id="stage">
+    <div class="km" id="km">
+      <div class="post" id="post">
+        <span class="ava" aria-hidden="true">С</span>
+        <b class="who">Саморезъ и партнёры <i id="pwhen"></i></b>
+        <p class="ptxt" id="ptext"></p>
+        <button type="button" class="chip" id="pickBtn">Другой пост</button>
+      </div>
+      <div class="field" id="field" aria-label="Комментарии под постом"></div>
+      <div class="bar" id="bar">
+        <div class="mode" role="group" aria-label="Что делает нажатие">
+          <button type="button" data-m="open" aria-pressed="true">Открывать</button><button type="button" data-m="flag" aria-pressed="false">Скрывать</button>
+        </div>
+        <p class="cap" id="cap" aria-live="polite"></p>
+      </div>
+    </div>
+  </main>
+  <p class="kit-hint" id="hint"></p>
+</div>
+<script src="../kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var K = window.Kit;
+  var KEY = 'kommentarii';
+  var LV = [
+    { id: 'pyatnica', name: 'Пост в пятницу', C: 8, R: 8, N: 10, when: 'пятница, 17:55',
+      text: 'Пятница! Даже саморез 4,2×76 устал за эту неделю. Расскажите, как отдыхаете вы.' },
+    { id: 'rozygrysh', name: 'Розыгрыш', C: 9, R: 12, N: 18, when: 'вторник, 12:00',
+      text: 'Разыгрываем шуруповёрт! Отметьте друга, у которого полка висит на честном слове.' },
+    { id: 'ceny', name: 'Повышение цен', C: 10, R: 14, N: 28, when: 'пятница, 21:58',
+      text: 'С понедельника саморезы дорожают на 12%. Спасибо, что остаётесь с нами.' }
+  ];
+  var AUTH = ['Прораб Сергей', 'Ирина К.', 'Валентина П.', 'Дима_стройка', 'Оля из Химок', 'Бухгалтерия', 'Витя-дизайнер', 'Анатолий', 'Мама дизайнера', 'ИП Гусев'];
+  var TXT = {
+    all: ['А оптом дешевле?', 'Где купить в Подольске?', 'Дед такими дачу собрал', 'Класс!', 'До Мытищ доставите?', 'Взял 500 штук, всё ровно', 'По дереву подойдут?', 'Лайк не глядя', 'Это реклама?', 'Отметил прораба', '+', 'Ждём рилс про анкеры', 'Админ, вы молодцы', 'Скиньте прайс в личку', 'Мама, я в комментариях!', 'Какой шаг резьбы?'],
+    pyatnica: ['Хорошей пятницы!', 'Какие выходные, у меня объект', 'Саморез, держись'],
+    rozygrysh: ['Участвую!', 'Муж, это намёк', 'Когда итоги?', 'Хочу шуруповёрт!'],
+    ceny: ['Понимаем, всё дорожает', 'Успею закупиться?', 'А по старой цене остались?']
+  };
+  var TROLL = ['Правдоруб', 'Гость 4815', 'Знаток', 'Эксперт'];
+  var HATE = {
+    all: ['Отписка.', 'Админ, ты бот?', 'У конкурентов дешевле', 'Саморезы гнутся от взгляда', 'Опять реклама', 'Позор!!!'],
+    pyatnica: ['А работать кто будет?'],
+    rozygrysh: ['Розыгрыш куплен, все знают', 'Выиграет племянник директора'],
+    ceny: ['Верните старые цены!', 'В долларах это грабёж']
+  };
+  var WIN = {
+    all: ['Пост набрал три лайка от коллег. Палыч поставил четвёртый.', 'Палыч спросил, почему так мало охвата. Значит, всё хорошо.'],
+    pyatnica: ['Пост набрал три лайка от коллег и один от мамы дизайнера. Можно идти домой.'],
+    rozygrysh: ['Шуруповёрт уехал к живому человеку. Даже не к боту.'],
+    ceny: ['Под постом о ценах тишина и два «понимаем». Палыч доволен.']
+  };
+  var LOSE = {
+    all: ['Скриншот уже у Палыча.', 'Хейтер собрал больше лайков, чем сам пост. Палыч зовёт «на минутку».'],
+    pyatnica: ['Хейтер спросил, кто будет работать. Палыч поставил ему лайк.'],
+    rozygrysh: ['Хейтер пишет, что розыгрыш куплен. Скриншот уже у Палыча.'],
+    ceny: ['«Верните старые цены» набрал двести лайков. Палыч просит объяснительную на три абзаца.']
+  };
+  var HIDE = ['Скрыто. Автор пока не заметил.', 'Скрыто. Видит только сам автор.', 'Скрыли. Пусть пишет в пустоту.'];
+  var UNHIDE = 'Снова на виду. Надеемся, это не хейтер.';
+  var PAUSE = ['Время стоит. Хейтеры терпеливо ждут.', 'Комментарии подождут. Палыч тоже на обеде.'];
+
+  var ICON_HIDE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/><path class="g" d="M4.6 4.6l14.8 14.8"/><path d="M4.6 4.6l14.8 14.8"/></svg>';
+  var ICON_HATER = '<svg viewBox="4 5 16 16" aria-hidden="true"><path d="M5.6 7.4l4.6 2.4M18.4 7.4l-4.6 2.4"/><circle class="d" cx="8.6" cy="12.7" r="1.6"/><circle class="d" cx="15.4" cy="12.7" r="1.6"/><path d="M8 18.3c2.4-2.4 5.6-2.4 8 0"/></svg>';
+
+  var stage = document.getElementById('stage'), field = document.getElementById('field'), postEl = document.getElementById('post'), barEl = document.getElementById('bar');
+  var capEl = document.getElementById('cap'), hintEl = document.getElementById('hint');
+  var S = null, nbs = [], els = [], tr = false, builtFor = 0, gid = 0, focusI = 0, mode = 'open';
+
+  function byId(id) { for (var i = 0; i < LV.length; i++) if (LV[i].id === id) return LV[i]; return null; }
+  function pool(o, id) { return o.all.concat(o[id] || []); }
+  function pl(n, a, b, c) { n = Math.abs(n) % 100; var d = n % 10; if (n > 10 && n < 20) return c; if (d > 1 && d < 5) return b; if (d === 1) return a; return c; }
+  function fmtT(s) { s = Math.max(0, Math.floor(s)); var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+  function zeros(n) { var a = []; for (var i = 0; i < n; i++) a.push(0); return a; }
+  function setCap(h) { capEl.innerHTML = h; }
+  function quote() { return '<b>' + K.rand(AUTH) + ':</b> «' + K.rand(pool(TXT, S.lv.id)) + '»'; }
+
+  // таймер
+  function elapsed() { return S.acc + (S.running ? performance.now() - S.t0 : 0); }
+  function startTimer() { if (!S.running) { S.running = true; S.t0 = performance.now(); } }
+  function stopTimer() { if (S.running) { S.acc += performance.now() - S.t0; S.running = false; } }
+  setInterval(function () { if (S && S.running) K.stat('time', fmtT(elapsed() / 1000)); }, 250);
+
+  function hud() {
+    var left = S.N - S.flags;
+    K.stat('left', left < 0 ? '−' + (-left) : left);
+    K.stat('time', fmtT(elapsed() / 1000));
+    var b = K.best(KEY + '-' + S.lv.id); K.stat('best', b == null ? '—' : fmtT(b));
+  }
+
+  function start(id) {
+    var lv = byId(id) || LV[0], n = lv.R * lv.C;
+    K.set(KEY + ':lv', lv.id);
+    S = { lv: lv, R: lv.R, C: lv.C, N: lv.N, mine: zeros(n), cnt: zeros(n), open: zeros(n), flag: zeros(n), opened: 0, flags: 0,
+      started: false, over: false, won: false, boom: -1, acc: 0, t0: 0, running: false, paused: false, view: false, gid: ++gid };
+    nbs = [];
+    for (var i = 0; i < n; i++) {
+      var r = (i / lv.C) | 0, c = i % lv.C, a = [];
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        var rr = r + dr, cc = c + dc;
+        if (rr >= 0 && cc >= 0 && rr < lv.R && cc < lv.C) a.push(rr * lv.C + cc);
+      }
+      nbs.push(a);
+    }
+    focusI = ((lv.R / 2) | 0) * lv.C + ((lv.C / 2) | 0);
+    K.closeCard(); field.classList.remove('blur');
+    document.getElementById('ptext').textContent = lv.text;
+    document.getElementById('pwhen').textContent = lv.when;
+    setCap('Первый комментарий всегда нормальный.');
+    hud(); layout();
+  }
+
+  function plant(safe) {
+    var ban = {}, n = S.R * S.C, p = [], i;
+    ban[safe] = 1; nbs[safe].forEach(function (j) { ban[j] = 1; });
+    for (i = 0; i < n; i++) if (!ban[i]) p.push(i);
+    if (p.length < S.N) { p = []; for (i = 0; i < n; i++) if (i !== safe) p.push(i); }
+    K.shuffle(p);
+    for (i = 0; i < S.N; i++) S.mine[p[i]] = 1;
+    for (i = 0; i < n; i++) S.cnt[i] = nbs[i].reduce(function (s, j) { return s + S.mine[j]; }, 0);
+  }
+
+  // вид клетки целиком из состояния
+  function view(i) {
+    var el = els[i]; if (!el) return;
+    var cls = 'k', html = '', lab, lost = S.over && !S.won;
+    if (S.open[i]) {
+      var n = S.cnt[i];
+      cls += ' o' + (n ? ' n' + n : ''); html = n ? String(n) : '';
+      lab = n ? 'Нормальный комментарий, хейтеров рядом: ' + n : 'Нормальный комментарий, рядом хейтеров нет';
+    } else if (lost && S.mine[i] && !S.flag[i]) { cls += ' m' + (i === S.boom ? ' boom' : ''); html = ICON_HATER; lab = 'Хейтер'; }
+    else if (lost && S.flag[i] && !S.mine[i]) { cls += ' x'; html = ICON_HIDE; lab = 'Скрыт зря, это был нормальный комментарий'; }
+    else if (S.flag[i]) { cls += ' f'; html = ICON_HIDE; lab = 'Скрытый комментарий'; }
+    else { cls += ' c'; lab = 'Свёрнутый комментарий'; }
+    el.className = cls; el.innerHTML = html; el.setAttribute('aria-label', lab);
+  }
+  function anim(i, cls, delay) {
+    var el = els[i]; if (!el || K.reduced) return;
+    el.style.animationDelay = Math.round(delay) + 'ms'; el.classList.add(cls);
+  }
+
+  // открытие волной из одной или нескольких клеток
+  function flood(src) {
+    var q = [], d = {}, h, j;
+    src.forEach(function (s) { if (!S.open[s] && !S.flag[s] && !S.mine[s] && d[s] == null) { d[s] = 0; q.push(s); } });
+    for (h = 0; h < q.length; h++) {
+      j = q[h]; S.open[j] = 1; S.opened++;
+      if (S.cnt[j] === 0) nbs[j].forEach(function (k) {
+        if (!S.open[k] && !S.flag[k] && !S.mine[k] && d[k] == null) { d[k] = d[j] + 1; q.push(k); }
+      });
+    }
+    q.forEach(function (k) { view(k); anim(k, 'wv', Math.min(d[k] * 32, 720)); });
+    return q.length;
+  }
+  function afterOpen(n) {
+    if (S.opened === S.R * S.C - S.N) { win(); return; }
+    setCap(quote());
+  }
+
+  function reveal(i) {
+    if (!S || S.over || S.open[i] || S.flag[i]) return;
+    if (!S.started) { plant(i); S.started = true; startTimer(); }
+    if (S.mine[i]) { lose(i); return; }
+    afterOpen(flood([i]));
+  }
+  function chord(i) {
+    if (!S || S.over || !S.open[i] || !S.cnt[i]) return;
+    var fl = 0, tgt = [];
+    nbs[i].forEach(function (j) { if (S.flag[j]) fl++; else if (!S.open[j]) tgt.push(j); });
+    if (!tgt.length) return;
+    if (fl !== S.cnt[i]) {
+      tgt.forEach(function (j) { if (els[j]) els[j].classList.add('peek'); });
+      setTimeout(function () { tgt.forEach(function (j) { if (els[j]) els[j].classList.remove('peek'); }); }, 220);
+      setCap('Рядом ' + S.cnt[i] + ' ' + pl(S.cnt[i], 'хейтер', 'хейтера', 'хейтеров') + '. Скрыто пока ' + fl + '.');
+      return;
+    }
+    for (var k = 0; k < tgt.length; k++) if (S.mine[tgt[k]]) { lose(tgt[k]); return; }
+    afterOpen(flood(tgt));
+  }
+  function toggleFlag(i) {
+    if (!S || S.over || S.open[i]) return;
+    S.flag[i] = S.flag[i] ? 0 : 1; S.flags += S.flag[i] ? 1 : -1;
+    view(i); if (S.flag[i]) anim(i, 'mv', 0);
+    setCap(S.flag[i] ? K.rand(HIDE) : UNHIDE);
+    hud();
+  }
+  function tap(i) {
+    if (mode === 'flag' && !S.open[i]) { toggleFlag(i); return; }
+    if (S.open[i]) chord(i); else reveal(i);
+  }
+
+  function win() {
+    S.over = true; S.won = true; stopTimer();
+    if (S.acc < 1000) S.acc = 1000;
+    var secs = Math.floor(S.acc / 1000), lv = S.lv, g = S.gid;
+    var mines = [];
+    for (var i = 0; i < S.mine.length; i++) if (S.mine[i] && !S.flag[i]) { S.flag[i] = 1; mines.push(i); }
+    S.flags = S.N;
+    mines.forEach(function (j, n) { view(j); anim(j, 'mv', n * 40); });
+    var r = K.record(KEY + '-' + lv.id, secs, lv.name + ': ' + fmtT(secs), true);
+    K.set('label:' + KEY, lv.name + ': ' + fmtT(r.best));
+    hud();
+    setCap('<b>Палыч:</b> «Нормально. А где охват?»');
+    setTimeout(function () {
+      if (!S || S.gid !== g || K.cardOpen()) return;
+      K.card({ stamp: r.isNew ? 'Новый рекорд' : lv.name, title: 'Все хейтеры скрыты', text: K.rand(pool(WIN, lv.id)),
+        nums: [['Время', fmtT(secs)], ['Рекорд', fmtT(r.best)]],
+        btns: [['Ещё раз', function () { start(lv.id); }], ['Другой пост', picker]] });
+    }, K.reduced ? 150 : 550);
+  }
+  function lose(i) {
+    S.over = true; S.boom = i; stopTimer();
+    var C = S.C, br = (i / C) | 0, bc = i % C, g = S.gid, lv = S.lv;
+    var secs = Math.floor(S.acc / 1000), ok = 0;
+    for (var j = 0; j < S.mine.length; j++) {
+      if (S.mine[j] && S.flag[j]) ok++;
+      if ((S.mine[j] && !S.flag[j]) || (!S.mine[j] && S.flag[j])) {
+        view(j);
+        if (j !== i) anim(j, 'mv', 120 + Math.min(Math.max(Math.abs(((j / C) | 0) - br), Math.abs(j % C - bc)) * 70, 900));
+      }
+    }
+    setCap('<b>' + K.rand(TROLL) + ':</b> «' + K.rand(pool(HATE, lv.id)) + '»');
+    hud();
+    setTimeout(function () {
+      if (!S || S.gid !== g || K.cardOpen()) return;
+      K.card({ stamp: 'Скриншот у Палыча', title: 'Хейтер в топе комментариев', text: K.rand(pool(LOSE, lv.id)),
+        nums: [['Развёрнуто', S.opened + ' из ' + (S.R * S.C - S.N)], ['Скрыто хейтеров', ok + ' из ' + S.N]],
+        btns: [['Ещё раз', function () { start(lv.id); }], ['Другой пост', picker], ['Посмотреть поле', viewBoard]] });
+    }, K.reduced ? 300 : 1100);
+  }
+  function viewBoard() { S.view = true; setCap('Нажмите на поле, и начнём заново.'); }
+
+  // пауза и выбор поста
+  function pauseGame() {
+    if (!S || !S.running || S.over) return false;
+    stopTimer(); S.paused = true; field.classList.add('blur'); return true;
+  }
+  function resumeGame() {
+    if (!S) return;
+    if (S.over) { S.view = true; return; }
+    if (!S.paused) return;
+    S.paused = false; field.classList.remove('blur'); startTimer();
+  }
+  K.onPause = function () {
+    cancelDown();
+    if (K.cardOpen() || !pauseGame()) return;
+    K.card({ stamp: 'Пауза', title: 'Модерация на паузе', text: K.rand(PAUSE), btns: [['Продолжить', resumeGame]] });
+  };
+  function picker() {
+    pauseGame();
+    var btns = LV.map(function (lv) {
+      var n = lv.R * lv.C, b = K.best(KEY + '-' + lv.id);
+      var sub = '<small>' + lv.N + ' хейтеров на ' + n + ' ' + pl(n, 'комментарий', 'комментария', 'комментариев') + '</small>' + (b == null ? '' : '<small>Рекорд ' + fmtT(b) + '</small>');
+      return [lv.name + sub, function () { start(lv.id); }];
+    });
+    K.card({ stamp: 'Модераторская', title: 'Какой пост модерируем?', text: 'Чем горячее пост, тем больше хейтеров в комментариях.',
+      btns: btns.concat([['Вернуться', resumeGame]]) });
+    var box = document.querySelector('#kitOver .kit-card-btns');
+    if (box) {
+      box.classList.add('km-pick');
+      var bs = box.querySelectorAll('.kit-btn');
+      LV.forEach(function (lv, k) { bs[k].classList.toggle('ghost', lv.id !== S.lv.id); });
+      bs[LV.length].classList.remove('ghost'); bs[LV.length].classList.add('km-back');
+      setTimeout(function () { var cur = box.querySelector('.kit-btn:not(.ghost):not(.km-back)'); if (cur) cur.focus(); }, 40);
+    }
+  }
+
+  // раскладка: поле поворачивается под форму экрана
+  function disp(i) { var r = (i / S.C) | 0, c = i % S.C; return tr ? [c, r] : [r, c]; }
+  function fromDisp(dr, dc) { return tr ? dc * S.C + dr : dr * S.C + dc; }
+  function build() {
+    var DR = tr ? S.C : S.R, DC = tr ? S.R : S.C, frag = document.createDocumentFragment();
+    els = [];
+    for (var dr = 0; dr < DR; dr++) for (var dc = 0; dc < DC; dc++) {
+      var i = fromDisp(dr, dc), b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('data-i', i); b.tabIndex = i === focusI ? 0 : -1;
+      els[i] = b; frag.appendChild(b);
+    }
+    field.innerHTML = ''; field.appendChild(frag);
+    for (var j = 0; j < els.length; j++) view(j);
+    builtFor = S.gid;
+  }
+  function layout() {
+    if (!S) return;
+    var st = getComputedStyle(stage), km = getComputedStyle(document.getElementById('km'));
+    var aw = stage.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+    var ah = stage.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom);
+    var land = aw > ah, gapKm = parseFloat(km.rowGap) || 10;
+    var ntr = S.R !== S.C && (land ? S.C < S.R : S.C > S.R);
+    var DC = ntr ? S.R : S.C, DR = ntr ? S.C : S.R, colW = aw, cs = 30, gap = 3;
+    for (var pass = 0; pass < 2; pass++) {
+      postEl.style.width = barEl.style.width = colW + 'px';
+      var ahF = ah - postEl.offsetHeight - barEl.offsetHeight - 2 * gapKm;
+      gap = 3;
+      cs = Math.floor(Math.min((aw - (DC - 1) * gap) / DC, (ahF - (DR - 1) * gap) / DR, 56));
+      if (cs < 32) { gap = 2; cs = Math.floor(Math.min((aw - (DC - 1) * gap) / DC, (ahF - (DR - 1) * gap) / DR)); }
+      cs = Math.max(20, cs);
+      colW = Math.min(aw, Math.max(DC * cs + (DC - 1) * gap, 330));
+    }
+    field.style.setProperty('--cs', cs + 'px'); field.style.setProperty('--gap', gap + 'px');
+    field.style.gridTemplateColumns = 'repeat(' + DC + ',' + cs + 'px)';
+    if (ntr !== tr || builtFor !== S.gid) { tr = ntr; build(); }
+  }
+
+  // ввод: мышь, сенсор, клавиатура
+  var down = null, holdT = 0;
+  function cancelDown() {
+    clearTimeout(holdT);
+    if (down && els[down.i]) els[down.i].classList.remove('hold');
+    down = null;
+  }
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {} }
+  function blocked() { return !S || K.cardOpen() || K.bossOn() || S.paused; }
+  function restartIfOver() { if (S.over) { if (S.view) start(S.lv.id); return true; } return false; }
+  function setFocus(i, move) {
+    if (els[focusI]) els[focusI].tabIndex = -1;
+    focusI = i; if (els[i]) { els[i].tabIndex = 0; if (move) els[i].focus(); }
+  }
+  field.addEventListener('pointerdown', function (e) {
+    var b = e.target.closest && e.target.closest('.k'); if (!b || blocked()) return;
+    var i = +b.getAttribute('data-i');
+    cancelDown();
+    if (restartIfOver()) return;
+    if (e.pointerType === 'mouse') {
+      if (e.button === 2 || (e.button === 0 && e.ctrlKey)) { e.preventDefault(); toggleFlag(i); return; }
+      if (e.button !== 0 && e.button !== 1) return;
+      if (e.button === 1) e.preventDefault();
+      down = { i: i, mouse: true, mid: e.button === 1 };
+      setFocus(i, false);
+      return;
+    }
+    down = { i: i, x: e.clientX, y: e.clientY, long: false };
+    if (!S.open[i]) {
+      b.classList.add('hold');
+      holdT = setTimeout(function () {
+        if (!down || down.i !== i) return;
+        down.long = true; b.classList.remove('hold'); toggleFlag(i); buzz();
+      }, 400);
+    }
+  });
+  field.addEventListener('pointermove', function (e) {
+    if (!down || down.mouse) return;
+    if (Math.abs(e.clientX - down.x) > 12 || Math.abs(e.clientY - down.y) > 12) cancelDown();
+  });
+  field.addEventListener('pointerup', function (e) {
+    if (!down) return;
+    var d = down; down = null; clearTimeout(holdT);
+    if (els[d.i]) els[d.i].classList.remove('hold');
+    if (d.long || blocked()) return;
+    if (d.mouse) {
+      var el = document.elementFromPoint(e.clientX, e.clientY), b = el && el.closest && el.closest('.k');
+      if (!b || +b.getAttribute('data-i') !== d.i) return;
+      if (d.mid) { chord(d.i); return; }
+    }
+    tap(d.i);
+  });
+  field.addEventListener('pointercancel', cancelDown);
+  field.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  field.addEventListener('keydown', function (e) {
+    var b = e.target.closest && e.target.closest('.k'); if (!b || !S) return;
+    var i = +b.getAttribute('data-i'), p = disp(i), DR = tr ? S.C : S.R, DC = tr ? S.R : S.C;
+    var mv = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+    if (mv) {
+      e.preventDefault();
+      var r = Math.min(DR - 1, Math.max(0, p[0] + mv[0])), c = Math.min(DC - 1, Math.max(0, p[1] + mv[1]));
+      setFocus(fromDisp(r, c), true); return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (blocked() || restartIfOver()) return; tap(i); }
+    else if (e.code === 'KeyF' || e.key === 'f' || e.key === 'а') { e.preventDefault(); if (!blocked() && !S.over) toggleFlag(i); }
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.mode button'), function (b) {
+    b.addEventListener('click', function () {
+      mode = b.getAttribute('data-m');
+      Array.prototype.forEach.call(document.querySelectorAll('.mode button'), function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+      setCap(mode === 'flag' ? 'Теперь нажатие скрывает.' : 'Теперь нажатие разворачивает.');
+    });
+  });
+  document.getElementById('pickBtn').addEventListener('click', function () { if (!K.cardOpen()) picker(); });
+
+  var coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  hintEl.innerHTML = coarse
+    ? 'Нажатие разворачивает комментарий, долгое нажатие скрывает. Нажмите на цифру, когда вокруг скрыто столько же хейтеров, и остальные развернутся сами.'
+    : 'Левая кнопка разворачивает комментарий, правая скрывает. Нажмите на цифру, когда вокруг скрыто столько же хейтеров, и остальные развернутся сами. <kbd>Esc</kbd> прячет игру.';
+
+  K.mount({ room: 'Двор · Скамейка у фонтана', game: 'Комментарии', stats: [['left', 'Хейтеров не скрыто'], ['time', 'Время', '0:00'], ['best', 'Рекорд']] });
+  start(K.get(KEY + ':lv', 'pyatnica'));
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  if (!K.get('seen:' + KEY, false)) {
+    K.card({ stamp: 'Модераторская', title: 'Комментарии',
+      text: 'Под постом «Саморезъ и партнёры» набежали комментарии, и среди них прячутся хейтеры. Разворачивайте нормальные комментарии: цифра на каждом показывает, сколько хейтеров вокруг. Где хейтер точно есть, скройте его. Первый комментарий всегда нормальный. Развернёте хейтера, и он уйдёт в топ, а скриншот к Палычу.',
+      btns: [['Начать модерацию', function () { K.set('seen:' + KEY, true); }]] });
+  }
+  window.__g = {
+    get S() { return S; }, get tr() { return tr; }, start: start, reveal: reveal, chord: chord, flag: toggleFlag, tap: tap, picker: picker,
+    el: function (i) { return els[i]; }, elapsed: function () { return elapsed(); },
+    mines: function () { var o = []; S.mine.forEach(function (m, i) { if (m) o.push(i); }); return o; },
+    solve: function () { for (var i = 0; i < S.mine.length && !S.over; i++) if (!S.mine[i] && !S.open[i]) { if (S.flag[i]) toggleFlag(i); reveal(i); } }
+  };
+})();
+</script>
+</body>
+</html>

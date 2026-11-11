@@ -26,7 +26,7 @@
   // шапка комнаты
   K.mount = function (o) {
     var top = document.getElementById('kitTop');
-    var back = o.back || { href: '../etazh/', label: 'Этаж' };
+    var back = o.back || { href: '../dvor/', label: 'Во двор' };
     top.innerHTML =
       '<a class="kit-logo" href="' + back.href + '">сделайте вирусно</a>' +
       '<div class="kit-room"><span>' + o.room + '</span><b>' + o.game + '</b></div>' +

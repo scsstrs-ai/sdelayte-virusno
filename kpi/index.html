@@ -355,7 +355,7 @@
   });
   cv.addEventListener('pointercancel', function () { down = null; });
 
-  K.mount({ room: 'Комната 203 · Ситуационный центр', game: 'Три KPI в ряд', stats: [['q', 'Квартал'], ['moves', 'Ходов'], ['best', 'Рекорд']] });
+  K.mount({ room: 'Двор · Спортплощадка', game: 'Три KPI в ряд', stats: [['q', 'Квартал'], ['moves', 'Ходов'], ['best', 'Рекорд']] });
   K.action('Сначала', function () { if (confirm('Начать с первого квартала?')) { K.closeCard(); start(1); } });
   K.onPause = function () { down = null; };
   K.onTheme(readTok); readTok();
@@ -364,7 +364,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { dirty = true; });
   requestAnimationFrame(loop);
   if (!K.get('seen:' + KEY, false)) {
-    K.card({ stamp: 'Ситуационный центр', title: 'Три KPI в ряд', text: 'Квартал начался, план утверждён. Меняйте местами соседние показатели и собирайте по три одинаковых в ряд. Выполните KPI до конца ходов. В третьем квартале Палыч уезжает на стратегическую сессию, и KPI могут поменяться.',
+    K.card({ stamp: 'Спортплощадка', title: 'Три KPI в ряд', text: 'Квартал начался, план утверждён. Меняйте местами соседние показатели и собирайте по три одинаковых в ряд. Выполните KPI до конца ходов. В третьем квартале Палыч уезжает на стратегическую сессию, и KPI могут поменяться.',
       btns: [['Начать квартал', function () { K.set('seen:' + KEY, true); }]] });
   }
   window.__g = { get S() { return S; }, get grid() { return grid; }, start: start, swap: trySwap, validSwaps: validSwaps, findRuns: findRuns, setFast: function (v) { fast = v; }, get phase() { return phase; } };

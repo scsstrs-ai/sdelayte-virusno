@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Воронка · Сделайте вирусно</title>
+<meta name="description" content="Бросайте показы в воронку продаж: два одинаковых шага сливаются в следующий, и так до клиента на годы.">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="../kit/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.vr{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.vr-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;max-width:100%}
+.vr-next{display:flex;align-items:center;gap:7px;background:var(--cell);color:var(--panel-ink);border-radius:99px;padding:4px 13px 4px 5px;font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0}
+.vr-next i{width:22px;height:22px;border-radius:50%;background:var(--c,#8A94A6);flex:none;transition:background .2s}
+.vr-next span{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.vr-chain{display:flex;align-items:center;gap:3px;flex:none}
+.vr-chain i{display:block;border-radius:50%;opacity:.22;transition:opacity .3s,transform .3s}
+.vr-chain i.on{opacity:1}
+.vr-chain i.top{transform:scale(1.25)}
+#cv{flex:none;cursor:crosshair}
+@media (max-width:560px){.vr-next{font-size:12.5px;padding-right:10px}.vr-next span{font-size:9.5px}}
+</style>
+</head>
+<body>
+<div class="kit-wrap fill">
+  <header class="kit-top" id="kitTop"></header>
+  <div class="kit-stats" id="kitStats"></div>
+  <main class="kit-stage" id="stage">
+    <div class="vr">
+      <div class="vr-bar" id="bar">
+        <div class="vr-next" aria-live="polite"><i id="nDot"></i><span>Дальше</span><b id="nName">Показ</b></div>
+        <div class="vr-chain" id="chain" aria-label="Шаги воронки"></div>
+      </div>
+      <canvas id="cv" aria-label="Воронка продаж"></canvas>
+    </div>
+  </main>
+  <p class="kit-hint">Ведите мышью или пальцем и отпустите, чтобы бросить. Стрелки двигают, <kbd>Пробел</kbd> бросает. <kbd>Esc</kbd> прячет игру.</p>
+</div>
+<script src="../kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var K = window.Kit;
+  var KEY = 'voronka';
+
+  // шаги воронки: имя, цвет, варианты подписи (от полной к короткой)
+  var ST = [
+    { n: 'Показ', c: '#8A94A6', o: [['Показ']], icon: 'eye' },
+    { n: 'Клик', c: '#14A3A8', o: [['Клик']] },
+    { n: 'Заявка', c: '#2E7FE0', o: [['Заявка'], ['заяв']] },
+    { n: 'Лид', c: '#4A4FD6', o: [['Лид']] },
+    { n: 'Квал. лид', c: '#8248D8', o: [['Квал. лид'], ['Квал.', 'лид'], ['квал']] },
+    { n: 'Встреча', c: '#B83CC2', o: [['Встреча'], ['встр']] },
+    { n: 'КП', c: '#DE2F78', o: [['КП']] },
+    { n: 'Сделка', c: '#F06A1A', o: [['Сделка']] },
+    { n: 'Повторная продажа', c: '#1E9E62', o: [['Повторная', 'продажа'], ['Повтор']] },
+    { n: 'Клиент на годы', c: '#E62020', o: [['Клиент', 'на годы'], ['Клиент']] }
+  ];
+  var R = [15, 19.5, 25, 31, 38, 45, 52, 60, 68, 77];
+  var LAST = ST.length - 1, BONUS = 500;
+  var FEED = [34, 27, 20, 12, 7]; // подаются только первые пять шагов, мелкие чаще
+
+  var SAY = {
+    4: ['Лид квалифицирован. У него даже есть бюджет', 'Квал. лид: берёт трубку и не просит прислать всё на почту'],
+    5: ['Встреча назначена. Клиент обещал включить камеру', 'Встреча! Продажник уже погладил рубашку'],
+    6: ['КП отправлено, клиент читает', 'КП ушло. Сорок слайдов, цена на последнем'],
+    7: ['Сделка! Палыч прослезился', 'Сделка закрыта. Отдел продаж уже забрал всю славу себе'],
+    8: ['Повторная продажа. Клиент вернулся сам, никто не верит', 'Клиент купил ещё раз. Маркетинг тихо празднует в углу'],
+    9: ['Клиент на годы! Палыч повесил его фото в переговорке', 'Клиент на годы. Конкуренты нервно переделывают прайс']
+  };
+  var PAIR = ['Два клиента на годы ушли в отдел ключевых клиентов. Вам премия +500', 'Два клиента на годы! Палыч дарит вам кружку с логотипом и +500 очков'];
+  var LOSE = [
+    'Лиды торчат из воронки и сыплются на пол. Отдел продаж посмотрел на них и сказал, что они нецелевые.',
+    'Воронка забита до краёв. Продажи говорят, что лиды нецелевые. Маркетинг говорит, что продажи не перезванивают. Палыч назначил стратсессию.',
+    'Воронка переполнилась. Руководитель продаж открыл первую заявку, вздохнул и объявил все лиды нецелевыми.'
+  ];
+
+  // мир в своих единицах: воронка 360 шириной сверху и 210 внизу
+  var WW = 392, M = 16, TW = 360, BW = 210, FH = 420, rimY = 100;
+  var xLt = M, xRt = M + TW, xLb = M + (TW - BW) / 2, xRb = xLb + BW, botY = rimY + FH, WH = botY + 14;
+  var lineY = rimY + 12, dropY = 52, WALL = 7;
+  var G = 1500, DT = 1 / 60, SUB = 8, COOL = 0.4, GRACE = 1, LIMIT = 2, GROW = 0.25, VMAX = 1200, UPMAX = 420, AIR = 0.4, CDAMP = 1.2, KSPEED = 320;
+  function slant(ax, ay, bx, by, left) {
+    var dx = bx - ax, dy = by - ay, l = Math.sqrt(dx * dx + dy * dy);
+    var nx = left ? dy / l : -dy / l, ny = left ? -dx / l : dx / l;
+    return { nx: nx, ny: ny, c: nx * ax + ny * ay };
+  }
+  // воронка выпуклая, поэтому стенки задаются полуплоскостями: сквозь них не провалиться
+  var PL = [
+    { nx: 1, ny: 0, c: xLt }, { nx: -1, ny: 0, c: -xRt }, { nx: 0, ny: -1, c: -botY },
+    slant(xLt, rimY, xLb, botY, true), slant(xRt, rimY, xRb, botY, false)
+  ];
+  function wallL(y) { return xLt + (y - rimY) * (xLb - xLt) / FH; }
+  function wallR(y) { return xRt - (y - rimY) * (xRt - xRb) / FH; }
+
+  var S = null, balls = [], fx = [], uid = 0, god = false, noMerge = false, paused = false, keys = { L: false, R: false }, aim = null, overTimer = 0;
+
+  function feed() {
+    var sum = 0, i; for (i = 0; i < FEED.length; i++) sum += FEED[i];
+    var r = Math.random() * sum;
+    for (i = 0; i < FEED.length; i++) { r -= FEED[i]; if (r < 0) return i; }
+    return 0;
+  }
+  function ball(l, x, y) { return { id: ++uid, l: l, x: x, y: y, px: x, py: y, vx: 0, vy: 0, r: R[l], r0: R[l], grow: 1, born: S.t, over: 0, m: false, dead: false, bad: false, touch: false }; }
+  function seen(l) {
+    if (!S.seen[l]) { S.seen[l] = true; chainEls[l].classList.add('on'); }
+    if (l > S.top) { if (S.top >= 0) chainEls[S.top].classList.remove('top'); S.top = l; chainEls[l].classList.add('top'); }
+  }
+  function clampDrop() {
+    var r = R[S.cur] + 1;
+    S.dropX = Math.max(xLt + r, Math.min(xRt - r, S.dropX));
+  }
+
+  function merge(a, b) {
+    a.dead = b.dead = true;
+    var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    if (a.l === LAST) {
+      S.score += BONUS; S.pairs++;
+      fx.push({ k: 'ring', x: mx, y: my, r: R[LAST] * 1.2, c: ST[LAST].c, t0: S.t, d: 0.8 });
+      fx.push({ k: 'txt', x: mx, y: my, s: '+' + BONUS, c: ST[LAST].c, t0: S.t, d: 1.4 });
+      K.toast(K.rand(PAIR), 3800);
+      hud();
+      return null;
+    }
+    var l = a.l + 1, nb = ball(l, mx, my);
+    nb.vx = (a.vx + b.vx) / 2; nb.vy = (a.vy + b.vy) / 2;
+    // новый шар начинает с того размера, который свободен вокруг середины, и плавно растёт:
+    // так соседи расталкиваются мягко и не улетают вверх
+    var room = Math.max(a.r, b.r), i, q, d;
+    for (i = 0; i < balls.length; i++) {
+      q = balls[i]; if (q === a || q === b || q.dead) continue;
+      d = Math.sqrt((q.x - mx) * (q.x - mx) + (q.y - my) * (q.y - my)) - q.r;
+      if (d < room) room = d;
+    }
+    for (i = 0; i < PL.length; i++) { d = PL[i].nx * mx + PL[i].ny * my - PL[i].c; if (d < room) room = d; }
+    nb.r = nb.r0 = Math.max(R[a.l] * 0.4, room); nb.grow = 0;
+    var k = l + 1, pts = k * (k + 1) / 2;
+    S.score += pts; S.merges++;
+    var first = !S.seen[l];
+    seen(l);
+    fx.push({ k: 'ring', x: mx, y: my, r: R[l], c: ST[l].c, t0: S.t, d: 0.4 });
+    fx.push({ k: 'txt', x: mx, y: my - R[l] * 0.4, s: '+' + pts, c: ST[l].c, t0: S.t, d: 0.9 });
+    if (SAY[l] && (l >= 6 || first)) K.toast(K.rand(SAY[l]), l >= 7 ? 3400 : 2600);
+    hud();
+    return nb;
+  }
+
+  // физика: позиционная динамика, восемь подшагов на кадр
+  function substep(h) {
+    var n = balls.length, i, j, a, b, k, p, s, pairs = null;
+    for (i = 0; i < n; i++) {
+      a = balls[i];
+      if (a.grow < 1) { a.grow = Math.min(1, a.grow + h / GROW); var e = a.grow * a.grow * (3 - 2 * a.grow); a.r = a.r0 + (R[a.l] - a.r0) * e; }
+      a.vy += G * h;
+      a.px = a.x; a.py = a.y;
+      a.x += a.vx * h; a.y += a.vy * h;
+      a.touch = false;
+    }
+    for (i = 0; i < n; i++) {
+      a = balls[i];
+      for (j = i + 1; j < n; j++) {
+        b = balls[j];
+        var dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r, rm = rr + 1;
+        if (dx > rm || dx < -rm || dy > rm || dy < -rm) continue;
+        var d2 = dx * dx + dy * dy;
+        if (a.l === b.l && !noMerge && !a.m && !b.m && d2 < rm * rm) {
+          a.m = b.m = true; (pairs || (pairs = [])).push(a, b); continue;
+        }
+        if (d2 >= rr * rr || a.m || b.m) continue;
+        var d = Math.sqrt(d2), nx = 0, ny = 1;
+        if (d > 1e-6) { nx = dx / d; ny = dy / d; }
+        var pen = rr - d, ma = a.r * a.r, mb = b.r * b.r, t = ma + mb;
+        var ka = pen * mb / t, kb = pen * ma / t;
+        a.x -= nx * ka; a.y -= ny * ka; b.x += nx * kb; b.y += ny * kb;
+        a.touch = b.touch = true;
+      }
+    }
+    for (i = 0; i < n; i++) {
+      a = balls[i];
+      for (k = 0; k < PL.length; k++) {
+        p = PL[k]; s = p.nx * a.x + p.ny * a.y - p.c - a.r;
+        if (s < 0) { a.x -= p.nx * s; a.y -= p.ny * s; a.touch = true; }
+      }
+      var vx = (a.x - a.px) / h, vy = (a.y - a.py) / h, damp = 1 - (a.touch ? CDAMP : AIR) * h;
+      vx *= damp; vy *= damp;
+      var sp = vx * vx + vy * vy;
+      if (sp > VMAX * VMAX) { var f = VMAX / Math.sqrt(sp); vx *= f; vy *= f; }
+      // вверх шары двигают только толчки соседей: подпрыгнуть можно, улететь из воронки нельзя
+      if (vy < -UPMAX) vy = -UPMAX;
+      a.vx = vx; a.vy = vy;
+    }
+    if (pairs) {
+      for (i = 0; i < pairs.length; i += 2) { var nb = merge(pairs[i], pairs[i + 1]); if (nb) balls.push(nb); }
+      balls = balls.filter(function (q) { return !q.dead; });
+    }
+  }
+
+  function tick(dt) {
+    S.t += dt;
+    if (S.cool > 0) S.cool = Math.max(0, S.cool - dt);
+    if (keys.L) S.dropX -= KSPEED * dt;
+    if (keys.R) S.dropX += KSPEED * dt;
+    clampDrop();
+    for (var i = 0; i < SUB; i++) substep(dt / SUB);
+    var near = false, worst = null;
+    for (i = 0; i < balls.length; i++) {
+      var b = balls[i], age = S.t - b.born, top = b.y - b.r;
+      if (age > GRACE && top < lineY) { b.over += dt; if (!worst || b.over > worst.over) worst = b; } else b.over = 0;
+      if (age > 0.5 && top < lineY + 40) near = true;
+    }
+    S.near = near; S.overT = worst ? worst.over : 0;
+    if (fx.length) fx = fx.filter(function (f) { return S.t - f.t0 < f.d; });
+    if (worst && worst.over > LIMIT && !god) lose(worst);
+  }
+
+  function drop() {
+    if (!S || S.over || S.cool > 0) return false;
+    clampDrop();
+    var b = ball(S.cur, S.dropX, dropY);
+    b.vy = 40;
+    balls.push(b); seen(S.cur); S.drops++;
+    S.cur = S.next; S.next = feed(); S.cool = COOL;
+    clampDrop(); bar();
+    return true;
+  }
+
+  function lose(b) {
+    S.over = true; b.bad = true;
+    var my = S, r = K.record(KEY, S.score, 'очков: ' + K.fmt(S.score));
+    hud();
+    clearTimeout(overTimer);
+    overTimer = setTimeout(function () {
+      if (S !== my) return;
+      K.card({ stamp: r.isNew && S.score > 0 ? 'Новый рекорд' : 'Планёрка в отделе продаж', title: 'Воронка переполнилась', text: K.rand(LOSE),
+        nums: [['Очки', K.fmt(S.score)], ['Лучшая ступень', ST[Math.max(0, S.top)].n], ['Рекорд', K.fmt(r.best)]],
+        btns: [['Ещё раз', start]] });
+    }, 750);
+  }
+
+  function start() {
+    clearTimeout(overTimer);
+    S = { score: 0, t: 0, over: false, cool: 0, cur: feed(), next: feed(), top: -1, seen: [], dropX: (xLt + xRt) / 2, near: false, overT: 0, drops: 0, merges: 0, pairs: 0 };
+    if (S.cur > 2) S.cur = Math.floor(Math.random() * 2);
+    balls = []; fx = []; paused = false; aim = null;
+    chainEls.forEach(function (el) { el.classList.remove('on'); el.classList.remove('top'); });
+    clampDrop(); bar(); hud();
+  }
+
+  // шапка над воронкой
+  var nDot = document.getElementById('nDot'), nName = document.getElementById('nName'), chainBox = document.getElementById('chain'), barEl = document.getElementById('bar');
+  var chainEls = ST.map(function (s, l) {
+    var el = document.createElement('i'), d = 7 + l * 1.2;
+    el.style.width = d + 'px'; el.style.height = d + 'px'; el.style.background = s.c; el.title = (l + 1) + '. ' + s.n;
+    chainBox.appendChild(el); return el;
+  });
+  function bar() { nDot.style.background = ST[S.next].c; nName.textContent = ST[S.next].n; }
+  function hud() {
+    K.stat('score', K.fmt(S.score));
+    var b = K.best(KEY); K.stat('best', b == null ? '—' : K.fmt(b));
+  }
+
+  // отрисовка
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage');
+  var dpr = 1, scale = 1, tok = {}, lab = [], labScale = 0;
+  function readTok() { tok = { cell: K.tok('cell'), panel: K.tok('panel'), ink: K.tok('panel-ink'), red: K.tok('red'), muted: K.tok('muted') }; }
+  function layout() {
+    var st = getComputedStyle(stage);
+    var aw = stage.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+    var ah = stage.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom) - barEl.offsetHeight - 8;
+    var sc = Math.max(0.5, Math.min(aw / WW, ah / WH, 1.5));
+    var w = Math.floor(WW * sc);
+    scale = w / WW;
+    var hgt = Math.round(WH * scale);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr); cv.style.width = w + 'px'; cv.style.height = hgt + 'px';
+    barEl.style.width = w + 'px';
+    labScale = 0;
+  }
+  function buildLabels() {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = '800 100px ' + K.FONT;
+    lab = ST.map(function (s, l) {
+      var r = R[l], best = null, need = s.icon ? 10.5 : 9;
+      for (var k = 0; k < s.o.length; k++) {
+        var lines = s.o[k], w = 0;
+        for (var q = 0; q < lines.length; q++) w = Math.max(w, ctx.measureText(lines[q]).width);
+        var maxW = 2 * r * (lines.length > 1 ? 0.78 : 0.86);
+        var fs = Math.min(100 * maxW / w, (2 * r * 0.7) / (lines.length * 1.05), r * 0.62);
+        var cand = { lines: lines, fs: fs };
+        if (fs * scale >= need) return cand;
+        if (!best || fs > best.fs) best = cand;
+      }
+      // слово не влезает читаемо: рисуем значок
+      return s.icon ? { icon: s.icon, fs: 0, lines: [] } : best;
+    });
+    ctx.restore(); labScale = scale;
+  }
+  var TAU = Math.PI * 2;
+  function drawBall(l, x, y, r, alpha, bad) {
+    var s = ST[l];
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,.38)'; ctx.lineWidth = r * 0.11;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.76, Math.PI * 1.08, Math.PI * 1.42); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,.13)'; ctx.lineWidth = r * 0.08;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.86, Math.PI * 0.2, Math.PI * 0.8); ctx.stroke();
+    if (l === LAST) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1.5, r * 0.04); ctx.beginPath(); ctx.arc(x, y, r * 0.9, 0, TAU); ctx.stroke(); }
+    if (bad) { ctx.strokeStyle = tok.ink; ctx.lineWidth = 3.5; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(x, y, r + 4, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+    var lb = lab[l], fs = lb.fs * r / R[l], n = lb.lines.length, lh = fs * 1.04;
+    if (lb.icon === 'eye') {
+      var w = r * 0.62, hh = r * 0.58;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = r * 0.13; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(x - w, y); ctx.quadraticCurveTo(x, y - hh, x + w, y); ctx.quadraticCurveTo(x, y + hh, x - w, y); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r * 0.18, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = '#fff'; ctx.font = '800 ' + fs.toFixed(2) + 'px ' + K.FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (var i = 0; i < n; i++) ctx.fillText(lb.lines[i], x, y - (n - 1) * lh / 2 + i * lh + fs * 0.05);
+    ctx.globalAlpha = 1;
+  }
+  function guideStop(x) {
+    var y = x < xLb ? rimY + (x - xLt) * FH / (xLb - xLt) : x > xRb ? rimY + (xRt - x) * FH / (xRt - xRb) : botY;
+    for (var i = 0; i < balls.length; i++) {
+      var b = balls[i], dx = Math.abs(b.x - x);
+      if (dx < b.r) { var t = b.y - Math.sqrt(b.r * b.r - dx * dx); if (t > dropY && t < y) y = t; }
+    }
+    return y;
+  }
+  function draw() {
+    if (labScale !== scale) buildLabels();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+    // нутро воронки с полосами, как на графике воронки
+    ctx.beginPath(); ctx.moveTo(xLt, rimY); ctx.lineTo(xRt, rimY); ctx.lineTo(xRb, botY); ctx.lineTo(xLb, botY); ctx.closePath();
+    ctx.fillStyle = tok.cell; ctx.fill();
+    ctx.save(); ctx.clip(); ctx.fillStyle = tok.panel; ctx.globalAlpha = 0.42;
+    for (var y = rimY + 60; y < botY; y += 120) ctx.fillRect(0, y, WW, 60);
+    ctx.restore();
+    // куда упадёт
+    var held = S && !S.over;
+    if (held) {
+      var gy = guideStop(S.dropX);
+      ctx.strokeStyle = tok.muted; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.6; ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.moveTo(S.dropX, dropY + R[S.cur]); ctx.lineTo(S.dropX, gy); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+    for (var i = 0; i < balls.length; i++) { var b = balls[i]; drawBall(b.l, b.x, b.y, b.r, 1, b.bad); }
+    // стенки
+    var o = WALL / 2, pl = PL[3], pr = PL[4];
+    var xl0 = (pl.c - o - pl.ny * rimY) / pl.nx, xl1 = (pl.c - o - pl.ny * (botY + o)) / pl.nx;
+    var xr0 = (pr.c - o - pr.ny * rimY) / pr.nx, xr1 = (pr.c - o - pr.ny * (botY + o)) / pr.nx;
+    ctx.strokeStyle = tok.ink; ctx.lineWidth = WALL; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(xl0 - 7, rimY - 1); ctx.lineTo(xl0, rimY); ctx.lineTo(xl1, botY + o); ctx.lineTo(xr1, botY + o); ctx.lineTo(xr0, rimY); ctx.lineTo(xr0 + 7, rimY - 1); ctx.stroke();
+    // красная линия
+    var lx0 = wallL(lineY) + 2, lx1 = wallR(lineY) - 2, a = 0.5;
+    if (S && S.overT > 0) a = 0.55 + 0.45 * Math.sin(S.t * 26);
+    else if (S && S.near) a = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(S.t * 9));
+    ctx.strokeStyle = tok.red; ctx.globalAlpha = Math.max(0.12, a); ctx.lineWidth = 2.5; ctx.setLineDash([9, 7]);
+    ctx.beginPath(); ctx.moveTo(lx0, lineY); ctx.lineTo(lx1, lineY); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    if (S && S.overT > 0) {
+      var k = Math.min(1, S.overT / LIMIT);
+      ctx.strokeStyle = tok.red; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(lx0, lineY); ctx.lineTo(lx0 + (lx1 - lx0) * k, lineY); ctx.stroke();
+    }
+    // эффекты слияний
+    for (i = 0; i < fx.length; i++) {
+      var f = fx[i], p = (S.t - f.t0) / f.d;
+      if (p < 0 || p > 1) continue;
+      if (f.k === 'ring') {
+        ctx.globalAlpha = 1 - p; ctx.strokeStyle = f.c; ctx.lineWidth = 4 * (1 - p) + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 + 0.45 * p), 0, TAU); ctx.stroke();
+      } else {
+        ctx.globalAlpha = p < 0.7 ? 1 : (1 - p) / 0.3;
+        ctx.font = '800 17px ' + K.FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 4; ctx.strokeStyle = tok.panel; ctx.lineJoin = 'round';
+        ctx.strokeText(f.s, f.x, f.y - 34 * p); ctx.fillStyle = f.c; ctx.fillText(f.s, f.x, f.y - 34 * p);
+      }
+      ctx.globalAlpha = 1;
+    }
+    // шар в руке
+    if (held) {
+      var q = S.cool > 0 ? 1 - S.cool / COOL : 1, e = 1 - Math.pow(1 - q, 3);
+      drawBall(S.cur, S.dropX, dropY, R[S.cur] * (0.35 + 0.65 * e), 0.25 + 0.75 * e, false);
+    }
+    // плашка о переполнении поверх всего
+    if (S && S.overT > 0) {
+      var msg = S.over ? 'Воронка переполнена' : 'Лиды лезут через край', mx = WW / 2, my = rimY - 20;
+      ctx.font = '800 13px ' + K.FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var mw = ctx.measureText(msg).width + 24;
+      ctx.fillStyle = tok.red; ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(mx - mw / 2, my - 12, mw, 24, 12); else ctx.rect(mx - mw / 2, my - 12, mw, 24);
+      ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(msg, mx, my + 0.5);
+    }
+  }
+
+  function running() { return !!S && !S.over && !K.cardOpen() && !K.bossOn(); }
+  var last = 0, acc = 0;
+  function frame(now) {
+    if (running()) {
+      acc += Math.min(0.05, last ? (now - last) / 1000 : 0);
+      while (acc >= DT) { tick(DT); acc -= DT; if (!running()) { acc = 0; break; } }
+    } else acc = 0;
+    last = now;
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ввод: мышь и палец
+  function worldX(e) { var r = cv.getBoundingClientRect(); return (e.clientX - r.left) / scale; }
+  function canPlay() { return running(); }
+  stage.addEventListener('pointermove', function (e) {
+    if (!canPlay()) return;
+    if (e.pointerType === 'mouse' || aim === e.pointerId) { S.dropX = worldX(e); clampDrop(); }
+  });
+  cv.addEventListener('pointerdown', function (e) {
+    if (!canPlay()) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    aim = e.pointerId; S.dropX = worldX(e); clampDrop();
+    try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+    e.preventDefault();
+  });
+  cv.addEventListener('pointerup', function (e) {
+    if (aim !== e.pointerId) return;
+    aim = null;
+    if (!canPlay()) return;
+    S.dropX = worldX(e); clampDrop(); drop();
+  });
+  cv.addEventListener('pointercancel', function () { aim = null; });
+  // клавиатура
+  document.addEventListener('keydown', function (e) {
+    if (!S || S.over || K.cardOpen() || K.bossOn()) return;
+    var k = e.key;
+    if (k === 'ArrowLeft' || k === 'ArrowRight') {
+      e.preventDefault();
+      if (!e.repeat) { S.dropX += k === 'ArrowLeft' ? -8 : 8; clampDrop(); }
+      keys[k === 'ArrowLeft' ? 'L' : 'R'] = true;
+    } else if (k === ' ' || k === 'Spacebar' || k === 'ArrowDown') {
+      e.preventDefault();
+      if (e.target && e.target !== document.body && e.target.blur) e.target.blur();
+      if (!e.repeat) drop();
+    }
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.key === 'ArrowLeft') keys.L = false;
+    if (e.key === 'ArrowRight') keys.R = false;
+  });
+
+  K.mount({ room: 'Комната 206 · Отдел продаж', game: 'Воронка', stats: [['score', 'Очки', 0], ['best', 'Рекорд']] });
+  var again = K.action('Сначала', function () {
+    again.blur();
+    if (!S || S.over || S.score === 0 || confirm('Начать заново? Очки этой партии сгорят.')) { K.closeCard(); start(); }
+  });
+  K.onPause = function () {
+    aim = null; keys.L = keys.R = false;
+    if (!S || S.over || K.cardOpen()) return;
+    paused = true;
+    K.card({ stamp: 'Пауза', title: 'Воронка ждёт', text: 'Лиды подождут. Они привыкли, что им перезванивают через неделю.',
+      btns: [['Продолжить', function () { paused = false; }]] });
+  };
+  K.onTheme(readTok); readTok();
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
+  layout(); start();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { labScale = 0; });
+  requestAnimationFrame(frame);
+  if (!K.get('seen:' + KEY, false)) {
+    K.card({ stamp: 'Отдел продаж', title: 'Воронка', text: 'Маркетинг льёт трафик, продажи ждут клиентов. Бросайте шаги воронки сверху. Два одинаковых при касании сливаются в следующий: из двух показов выходит клик, из двух кликов заявка, и так до клиента на годы. Если шар дольше двух секунд торчит над красной линией, воронка переполнена.',
+      btns: [['Открыть воронку', function () { K.set('seen:' + KEY, true); }]] });
+  }
+
+  window.__g = {
+    get S() { return S; }, get balls() { return balls; }, get running() { return running(); }, get paused() { return paused && K.cardOpen(); },
+    set god(v) { god = !!v; }, set noMerge(v) { noMerge = !!v; },
+    ST: ST,
+    geo: function () {
+      var r = cv.getBoundingClientRect();
+      return { left: r.left, top: r.top, w: r.width, h: r.height, scale: scale, WW: WW, WH: WH, xLt: xLt, xRt: xRt, xLb: xLb, xRb: xRb, rimY: rimY, botY: botY, lineY: lineY, dropY: dropY, R: R.slice() };
+    },
+    start: start, drop: drop, tick: function () { tick(DT); },
+    step: function (n) { for (var i = 0; i < n && S && !S.over; i++) tick(DT); return S.t; },
+    add: function (l, x, y, age) { var b = ball(l, x, y); if (age) b.born = S.t - age; balls.push(b); seen(l); return b.id; },
+    // насыпать n шаров сеткой над воронкой, без наложений
+    spill: function (n, minL, maxL) {
+      var sp = 2 * R[maxL] + 2, cols = Math.floor((TW - 2) / sp), x0 = xLt + (TW - cols * sp) / 2 + sp / 2;
+      for (var i = 0; i < n; i++) {
+        var l = minL + Math.floor(Math.random() * (maxL - minL + 1));
+        var b = ball(l, x0 + (i % cols) * sp + (Math.random() - 0.5) * 2, lineY - 60 - Math.floor(i / cols) * sp);
+        balls.push(b); seen(l);
+      }
+      return balls.length;
+    },
+    check: function () {
+      var out = 0, worst = 0, vmax = 0, fin = true;
+      balls.forEach(function (b) {
+        if (!isFinite(b.x) || !isFinite(b.y)) fin = false;
+        PL.forEach(function (p) { var s = p.nx * b.x + p.ny * b.y - p.c - b.r; if (s < worst) worst = s; if (s < -1) out++; });
+        vmax = Math.max(vmax, Math.sqrt(b.vx * b.vx + b.vy * b.vy));
+      });
+      var ov = 0;
+      for (var i = 0; i < balls.length; i++) for (var j = i + 1; j < balls.length; j++) {
+        var a = balls[i], c = balls[j], d = Math.sqrt((a.x - c.x) * (a.x - c.x) + (a.y - c.y) * (a.y - c.y));
+        ov = Math.max(ov, a.r + c.r - d);
+      }
+      return { n: balls.length, out: out, worst: +worst.toFixed(3), vmax: +vmax.toFixed(3), overlap: +ov.toFixed(3), finite: fin };
+    }
+  };
+})();
+</script>
+</body>
+</html>

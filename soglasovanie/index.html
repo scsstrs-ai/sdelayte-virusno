@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Змейка согласований · Сделайте вирусно</title>
+<meta name="description" content="Змейка про согласование макета: соберите визы всех отделов и не потеряйте документ в архиве.">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="../kit/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.sg{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+#cv{flex:none}
+#stage .kit-nums{grid-template-columns:repeat(auto-fit,minmax(74px,1fr))}
+.cap{flex:none;margin:0;max-width:100%;font-size:13px;line-height:1.4;height:1.4em;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pad{display:none;flex:none;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,48px);gap:6px}
+.pad button{border:0;border-radius:14px;background:var(--cell);color:var(--panel-ink);display:grid;place-items:center;padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.pad button:active,.pad button.on{background:var(--red);color:#fff}
+.pad svg{width:26px;height:26px}
+.pad .u{grid-column:2;grid-row:1}
+.pad .l{grid-column:1;grid-row:2}
+.pad .d{grid-column:2;grid-row:2}
+.pad .r{grid-column:3;grid-row:2}
+.pad .d svg{transform:rotate(180deg)}
+.pad .l svg{transform:rotate(-90deg)}
+.pad .r svg{transform:rotate(90deg)}
+.h-touch{display:none}
+@media (pointer:coarse),(max-width:560px){
+  .pad{display:grid}
+  .h-touch{display:inline}
+  .h-desk{display:none}
+  .cap{white-space:normal;height:2.8em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;padding:0 4px}
+}
+</style>
+</head>
+<body>
+<div class="kit-wrap fill">
+  <header class="kit-top" id="kitTop"></header>
+  <div class="kit-stats" id="kitStats"></div>
+  <main class="kit-stage" id="stage">
+    <div class="sg">
+      <canvas id="cv" aria-label="Коридор согласований: макет ползёт по кабинетам и собирает визы"></canvas>
+      <p class="cap" id="cap" aria-live="polite"></p>
+      <div class="pad" id="pad">
+        <button type="button" class="u" data-d="u" tabindex="-1" aria-label="Вверх"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5l7.5 8.5h-4.8v6.5H9.3V13H4.5z" fill="currentColor"/></svg></button>
+        <button type="button" class="l" data-d="l" tabindex="-1" aria-label="Влево"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5l7.5 8.5h-4.8v6.5H9.3V13H4.5z" fill="currentColor"/></svg></button>
+        <button type="button" class="d" data-d="d" tabindex="-1" aria-label="Вниз"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5l7.5 8.5h-4.8v6.5H9.3V13H4.5z" fill="currentColor"/></svg></button>
+        <button type="button" class="r" data-d="r" tabindex="-1" aria-label="Вправо"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5l7.5 8.5h-4.8v6.5H9.3V13H4.5z" fill="currentColor"/></svg></button>
+      </div>
+    </div>
+  </main>
+  <p class="kit-hint"><span class="h-desk">Стрелки или <kbd>WASD</kbd> ведут макет по коридору. <kbd>Пробел</kbd> или <kbd>P</kbd> ставят паузу. <kbd>Esc</kbd> прячет игру.</span><span class="h-touch">Ведите макет свайпами по полю или стрелками под ним. Стены и свой хвост опасны.</span></p>
+</div>
+<script src="../kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var K = window.Kit;
+  var KEY = 'soglasovanie';
+  var DEP = [
+    { n: 'Юрист', l: 'Ю', c: '#2F5BD3', q: ['Юрист подписал и попросил сноску мелким шрифтом на полстраницы.', 'Юрист вычеркнул слово «лучший». Остальное можно.', 'Юрист: «Допишите, что результат не гарантирован». Подписал.'] },
+    { n: 'Бухгалтерия', l: 'Б', c: '#1E9E62', q: ['Бухгалтерия подписала и спросила, где закрывающие документы.', 'Бухгалтерия: «Это из какого бюджета?» Подписала на всякий случай.', 'Бухгалтерия подписала, потому что сегодня пятница.'] },
+    { n: 'Продажи', l: 'П', c: '#E8590C', q: ['Продажи: «А телефон можно покрупнее?»', 'Продажи подписали и попросили дописать слово «скидка».', 'Продажи: «Клиенты такое любят. Наверное».'] },
+    { n: 'Безопасность', l: 'СБ', c: '#6741D9', q: ['Безопасность проверила, нет ли в макете паролей. Нет.', 'СБ спросила, кто такой этот шрифт Onest, и подписала.', 'СБ: «QR-код ведёт куда надо? Ладно, верим».'] },
+    { n: 'HR', l: 'HR', c: '#D6336C', q: ['HR: «Допишите, что мы дружная команда».', 'HR подписал и позвал всех на тимбилдинг в субботу.', 'HR попросил добавить на макет фото с корпоратива.'] },
+    { n: 'Пресс-служба', l: 'ПС', c: '#0C8599', q: ['Пресс-служба поменяла одну запятую и подписала.', 'Пресс-служба: «А с Палычем это согласовано?»', 'Пресс-служба придумала цитату Палыча. Палыч её одобрил.'] }
+  ];
+  var GD = 6, GOLD = { l: 'ГД', c: '#F5B400', ink: '#3B2A00' };
+  var DX = { u: 0, d: 0, l: -1, r: 1 }, DY = { u: -1, d: 1, l: 0, r: 0 }, OPP = { u: 'd', d: 'u', l: 'r', r: 'l' };
+  var KEYS = { ArrowUp: 'u', ArrowDown: 'd', ArrowLeft: 'l', ArrowRight: 'r', KeyW: 'u', KeyS: 'd', KeyA: 'l', KeyD: 'r',
+    w: 'u', s: 'd', a: 'l', d: 'r', 'ц': 'u', 'ы': 'd', 'ф': 'l', 'в': 'r' };
+  var READY = ['Макет готов. Осталось собрать подписи шести отделов.', 'Свежий макет на столе. Пора по кабинетам.', 'Палыч ждёт согласованный макет к обеду.'];
+  var GOLD_IN = ['Палыч вышел в коридор! Золотая виза ждёт 6 секунд', 'Палыч идёт с совещания. Ловите его визу'];
+  var GOLD_EAT = ['Палыч подписал не глядя: плюс три визы', 'Палыч: «Подписываю. Только сделайте вирусно». Плюс три визы'];
+  var GOLD_OUT = ['Палыч ушёл обедать. Золотая виза ушла вместе с ним.', 'Палыч уехал на стратсессию. Визу подпишет в следующем квартале.'];
+  var MEET = ['В коридоре началось совещание. Обходите стороной', 'Совещание «на пять минут» перекрыло проход', 'Отдел собрал планёрку прямо в коридоре'];
+  var FASTER = ['Палыч спросил, где макет. Темп растёт', 'Клиент звонит каждые пять минут. Темп растёт', 'Дедлайн перенесли на вчера. Темп растёт', 'Запуск завтра утром. Темп растёт'];
+  var REASON = {
+    wall: { t: 'Документ потерялся в архиве', x: 'Макет свернул в стену и уехал в архив. Найдут при следующей инвентаризации.' },
+    tail: { t: 'Документ ушёл на повторное согласование', x: 'Макет наступил на собственную визу. Подписи придётся собирать заново.' },
+    meet: { t: 'Документ застрял на совещании', x: 'Макет заглянул на совещание «на пять минут». Оно идёт третий час.' },
+    full: { t: 'Согласовано всеми', x: 'В коридоре не осталось места даже для одной визы. Такого здесь ещё не видели.' }
+  };
+  var PAL_LOW = ['Палыч: «Я даже не успел сказать „сделайте вирусно“».', 'Палыч: «Быстро вы. Жаль, что не туда».'];
+  var PAL_MID = ['Палыч: «А почему так долго? Сделайте вирусно, и всё».', 'Палыч: «Давайте к понедельнику. И чтобы вирусно».', 'Палыч: «Я бы подписал сразу, но меня никто не спросил».'];
+  var PAL_HIGH = ['Палыч: «Столько виз? Вот это я понимаю, процесс».', 'Палыч: «Хорошо. Теперь сделайте вирусно».'];
+
+  var S = null, acc = 0, hold = false, fast = false, overTimer = 0, pauseBtn = null;
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function rint(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function stepMs(v) { return Math.max(105, 215 - 14 * Math.floor(v / 5)); }
+  function tempo(v) { return Math.min(9, Math.floor(v / 5) + 1); }
+  function fmtTime(ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function padOn() { return getComputedStyle(padEl).display !== 'none'; }
+
+  // поле и партия
+  function makeDoors(cols) {
+    var list = K.shuffle([0, 1, 2, 3, 4, 5, GD, -2]), doors = [], n = Math.max(2, Math.floor(cols / 4)), sp = cols / n, i = 0;
+    ['t', 'b'].forEach(function (side, si) {
+      for (var j = 0; j < n; j++) {
+        var k = list[i++ % list.length], w = k === -2 ? 2.2 : 1.5;
+        doors.push({ side: side, k: k, w: w, x: clamp((j + 0.5) * sp + (si ? sp * 0.3 : -sp * 0.1), w / 2 + 0.3, cols - w / 2 - 0.3) });
+      }
+    });
+    return doors;
+  }
+  function reset() {
+    clearTimeout(overTimer); K.closeCard();
+    var a = avail(), ratio = a.w / a.h, cols, rows;
+    if (ratio >= 1.2) { cols = 20; rows = clamp(Math.round(cols / ratio), 11, 14); }
+    else if (ratio <= 0.85) { cols = 13; rows = clamp(Math.round(cols / ratio), 14, 19); }
+    else { cols = 16; rows = clamp(Math.round(cols / ratio), 13, 18); }
+    var wide = cols > rows;
+    S = { cols: cols, rows: rows, body: [{ x: Math.floor(cols / 2) - (wide ? 3 : 0), y: Math.floor(rows / 2) + (wide ? 0 : 2) }], prev: null, kinds: [-1],
+      pending: [], dir: null, queue: [], food: null, gold: null, eat: null, meets: [], meetN: 0, viz: 0, steps: 0, clock: 0,
+      lastGoldViz: 0, lastKind: -1, state: 'ready', why: '', deadAt: 0, rec: null, doors: makeDoors(cols) };
+    acc = 0;
+    spawnFood();
+    layout(); hud();
+    capEl.textContent = K.rand(READY);
+  }
+  function occupied() {
+    var o = {};
+    function mark(c) { o[c.x + ',' + c.y] = 1; }
+    S.body.forEach(mark);
+    S.meets.forEach(function (m) { m.cells.forEach(mark); });
+    if (S.food) mark(S.food);
+    if (S.gold) mark(S.gold);
+    return o;
+  }
+  function freeCells() {
+    var o = occupied(), out = [];
+    for (var y = 0; y < S.rows; y++) for (var x = 0; x < S.cols; x++) if (!o[x + ',' + y]) out.push({ x: x, y: y });
+    return out;
+  }
+  function spawnFood() {
+    var f = freeCells(), h = S.body[0];
+    if (!f.length) { S.food = null; return false; }
+    var far = f.filter(function (c) { return Math.abs(c.x - h.x) + Math.abs(c.y - h.y) > 2; });
+    var c = K.rand(far.length ? far : f), k;
+    do { k = Math.floor(Math.random() * DEP.length); } while (k === S.lastKind);
+    S.food = { x: c.x, y: c.y, k: k }; S.lastKind = k;
+    return true;
+  }
+  function spawnGold(x, y) {
+    var c;
+    if (x != null) c = { x: x, y: y };
+    else {
+      var h = S.body[0], f = freeCells(), near = f.filter(function (q) { var d = Math.abs(q.x - h.x) + Math.abs(q.y - h.y); return d >= 3 && d <= 12; });
+      if (!f.length) return false;
+      c = K.rand(near.length ? near : f);
+    }
+    S.gold = { x: c.x, y: c.y, left: 6000 };
+    K.toast(K.rand(GOLD_IN), 2600);
+    return true;
+  }
+  function meetAt(x, y) {
+    for (var i = 0; i < S.meets.length; i++) for (var j = 0; j < S.meets[i].cells.length; j++) { var c = S.meets[i].cells[j]; if (c.x === x && c.y === y) return true; }
+    return false;
+  }
+  // совещание: не на змейке, не рядом с другим совещанием и не на пути головы
+  function spawnMeeting() {
+    var o = occupied(), h = S.body[0], d = S.dir || 'r', near = {};
+    S.meets.forEach(function (m) { m.cells.forEach(function (c) { for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) near[(c.x + dx) + ',' + (c.y + dy)] = 1; }); });
+    function ok(c) {
+      if (o[c.x + ',' + c.y] || near[c.x + ',' + c.y]) return false;
+      if (Math.max(Math.abs(c.x - h.x), Math.abs(c.y - h.y)) < 3) return false;
+      var fx = c.x - h.x, fy = c.y - h.y, ahead = d === 'r' ? fx : d === 'l' ? -fx : d === 'd' ? fy : -fy, side = d === 'r' || d === 'l' ? Math.abs(fy) : Math.abs(fx);
+      return !(ahead > 0 && ahead <= 7 && side <= 1);
+    }
+    for (var a = 0; a < 400; a++) {
+      var len = Math.random() < 0.5 ? 2 : 3, vert = Math.random() < 0.5;
+      var x = rint(1, S.cols - 2 - (vert ? 0 : len - 1)), y = rint(1, S.rows - 2 - (vert ? len - 1 : 0)), cells = [];
+      for (var i = 0; i < len; i++) cells.push({ x: x + (vert ? 0 : i), y: y + (vert ? i : 0) });
+      if (cells.every(ok)) { S.meets.push({ x: x, y: y, len: len, vert: vert, cells: cells }); return true; }
+    }
+    return false;
+  }
+
+  // ход
+  function tick() {
+    var d = S.queue.length ? S.queue.shift() : S.dir;
+    if (!d) return;
+    if (S.dir && S.body.length > 1 && d === OPP[S.dir]) d = S.dir;
+    S.dir = d; S.eat = null;
+    var h = S.body[0], nx = h.x + DX[d], ny = h.y + DY[d];
+    if (nx < 0 || ny < 0 || nx >= S.cols || ny >= S.rows) return die('wall');
+    if (meetAt(nx, ny)) return die('meet');
+    var food = !!S.food && S.food.x === nx && S.food.y === ny, gold = !!S.gold && S.gold.x === nx && S.gold.y === ny;
+    var n = S.pending.length || food || gold ? S.body.length : S.body.length - 1;
+    for (var i = 0; i < n; i++) if (S.body[i].x === nx && S.body[i].y === ny) return die('tail');
+    S.prev = S.body.map(function (c) { return { x: c.x, y: c.y }; });
+    var tail = S.body[S.body.length - 1], before = S.viz;
+    S.body.unshift({ x: nx, y: ny }); S.body.pop(); S.steps++;
+    if (food) {
+      var k = S.food.k;
+      S.pending.push(k); S.viz++; S.eat = { x: nx, y: ny, k: k }; S.food = null;
+      capEl.textContent = K.rand(DEP[k].q);
+    }
+    if (gold) {
+      S.pending.push(GD, GD, GD); S.viz += 3; S.eat = { x: nx, y: ny, k: GD }; S.gold = null; S.lastGoldViz = S.viz;
+      K.toast(K.rand(GOLD_EAT), 2600);
+      capEl.textContent = 'Золотая виза Палыча открывает любые двери. Почти любые.';
+    }
+    if (S.pending.length) { S.body.push({ x: tail.x, y: tail.y }); S.prev.push({ x: tail.x, y: tail.y }); S.kinds.push(S.pending.shift()); }
+    if (S.viz !== before) afterVisa(before, food);
+  }
+  function afterVisa(before, wasFood) {
+    if (!S.food && !spawnFood() && !S.gold) { die('full'); return; }
+    if (tempo(S.viz) > tempo(before)) K.toast(K.rand(FASTER));
+    var added = 0, cap = Math.floor(S.cols * S.rows / 32);
+    while (Math.floor(S.viz / 8) > S.meetN) { S.meetN++; if (S.meets.length < cap && spawnMeeting()) added++; }
+    if (added) K.toast(K.rand(MEET), 2600);
+    if (wasFood && !S.gold && S.viz >= 4 && S.viz - S.lastGoldViz >= 6 && Math.random() < 0.3) spawnGold();
+    hud();
+  }
+  function goldGone() {
+    S.gold = null;
+    capEl.textContent = K.rand(GOLD_OUT);
+    if (!S.food) spawnFood();
+  }
+  function die(why) {
+    S.state = 'over'; S.why = why; S.deadAt = performance.now(); S.queue = [];
+    S.rec = S.viz > 0 ? K.record(KEY, S.viz, 'виз: ' + S.viz) : { best: K.best(KEY), isNew: false };
+    capEl.textContent = REASON[why].t + '.';
+    hud();
+    overTimer = setTimeout(showOver, fast ? 0 : 750);
+  }
+  function showOver() {
+    var r = S.rec, v = S.viz, line;
+    if (r.isNew && v >= 5) line = 'Палыч: «Рекорд коридора. Повесим на доску почёта».';
+    else line = K.rand(v < 5 ? PAL_LOW : v < 25 ? PAL_MID : PAL_HIGH);
+    K.card({ stamp: r.isNew ? 'Новый рекорд' : 'Согласование сорвано', title: REASON[S.why].t, text: REASON[S.why].x + ' ' + line,
+      nums: [['Визы', v], ['Рекорд', r.best == null ? '—' : r.best], ['В пути', fmtTime(S.clock)]],
+      btns: [['Ещё раз', reset]] });
+  }
+
+  // ввод
+  function input(d) {
+    if (!S || K.cardOpen() || K.bossOn() || S.state === 'over') return;
+    if (S.state === 'ready') {
+      S.queue = [d]; S.state = 'run'; acc = stepMs(0) * 0.5;
+      capEl.textContent = 'Поехали. Первая виза ждёт где-то в коридоре.';
+      hud(); return;
+    }
+    if (S.state === 'pause') setPause(false);
+    var last = S.queue.length ? S.queue[S.queue.length - 1] : S.dir;
+    if (d === last) return;
+    if (last && d === OPP[last] && S.body.length > 1) return;
+    if (S.queue.length < 3) S.queue.push(d);
+  }
+  function setPause(on) {
+    if (on && S.state === 'run') S.state = 'pause';
+    else if (!on && S.state === 'pause') { S.state = 'run'; capEl.textContent = 'Продолжаем согласование.'; }
+    hud();
+  }
+  function togglePause() {
+    if (!S || K.cardOpen()) return;
+    if (S.state === 'run') { setPause(true); capEl.textContent = 'Пауза. Макет ждёт у кулера.'; }
+    else if (S.state === 'pause') setPause(false);
+    else if (S.state === 'ready') K.toast(padOn() ? 'Сначала проведите по полю или нажмите стрелку' : 'Сначала выберите направление стрелкой');
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || K.cardOpen() || K.bossOn()) return;
+    var d = KEYS[e.code] || KEYS[(e.key || '').toLowerCase()];
+    if (d) { e.preventDefault(); input(d); return; }
+    if (e.code === 'Space' || e.code === 'KeyP' || e.key === ' ' || e.key === 'p' || e.key === 'P' || e.key === 'з' || e.key === 'З') {
+      e.preventDefault(); if (!e.repeat) togglePause();
+    }
+  });
+
+  // отрисовка
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage');
+  var capEl = document.getElementById('cap'), padEl = document.getElementById('pad');
+  var bg = document.createElement('canvas'), bctx = bg.getContext('2d');
+  var dpr = 1, cs = 30, ws = 10, wt = 18, W = 0, H = 0, tok = {};
+  function readTok() {
+    tok = { cell: K.tok('cell') || '#F3EAE7', line: K.tok('line') || '#EADAD6', ink: K.tok('panel-ink') || '#1C1313', muted: K.tok('muted') || '#76615E',
+      red: K.tok('red') || '#E62020', panel: K.tok('panel') || '#FFFFFF' };
+    renderBg();
+  }
+  function avail() {
+    var st = getComputedStyle(stage);
+    var w = stage.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+    var h = stage.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom) - capEl.offsetHeight - 8;
+    if (padOn()) h -= padEl.offsetHeight + 8;
+    return { w: Math.max(160, w), h: Math.max(160, h) };
+  }
+  function layout() {
+    if (!S) return;
+    var a = avail(), c0 = Math.min(a.w / (S.cols + 0.8), a.h / (S.rows + 1.3));
+    ws = clamp(Math.round(c0 * 0.36), 7, 14); wt = clamp(Math.round(c0 * 0.66), 17, 26);
+    cs = clamp(Math.floor(Math.min((a.w - 2 * ws) / S.cols, (a.h - 2 * wt) / S.rows)), 12, 46);
+    W = S.cols * cs + 2 * ws; H = S.rows * cs + 2 * wt; dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    renderBg();
+  }
+  function rr(c, x, y, w, h, r) { c.beginPath(); if (c.roundRect) c.roundRect(x, y, w, h, r); else c.rect(x, y, w, h); }
+  function font(c, w, px) { c.font = w + ' ' + Math.round(px * 10) / 10 + 'px ' + K.FONT; }
+  function renderBg() {
+    if (!S || !W) return;
+    bg.width = cv.width; bg.height = cv.height;
+    var c = bctx, fw = S.cols * cs, fh = S.rows * cs, x, y;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    // стены коридора
+    c.fillStyle = tok.line; rr(c, 0, 0, W, H, Math.min(14, wt)); c.fill();
+    c.globalAlpha = 0.1; c.fillStyle = tok.ink; c.fill(); c.globalAlpha = 1;
+    // плитка пола
+    c.fillStyle = tok.cell; c.fillRect(ws, wt, fw, fh);
+    c.fillStyle = tok.ink; c.globalAlpha = 0.035;
+    for (y = 0; y < S.rows; y++) for (x = 0; x < S.cols; x++) if ((x + y) % 2) c.fillRect(ws + x * cs, wt + y * cs, cs, cs);
+    c.globalAlpha = 1;
+    c.strokeStyle = tok.line; c.lineWidth = 1; c.beginPath();
+    for (x = 1; x < S.cols; x++) { c.moveTo(ws + x * cs + 0.5, wt); c.lineTo(ws + x * cs + 0.5, wt + fh); }
+    for (y = 1; y < S.rows; y++) { c.moveTo(ws, wt + y * cs + 0.5); c.lineTo(ws + fw, wt + y * cs + 0.5); }
+    c.stroke();
+    // плинтус
+    c.strokeStyle = tok.muted; c.globalAlpha = 0.6; c.lineWidth = 2; c.strokeRect(ws - 1, wt - 1, fw + 2, fh + 2); c.globalAlpha = 1;
+    // двери кабинетов
+    S.doors.forEach(function (d) {
+      var dw = d.w * cs, x0 = ws + d.x * cs - dw / 2, h = wt - 4, y0 = d.side === 't' ? 2 : wt + fh + 2;
+      c.fillStyle = tok.muted; c.globalAlpha = 0.42; rr(c, x0, y0, dw, h, 3); c.fill(); c.globalAlpha = 1;
+      c.fillStyle = tok.panel; c.globalAlpha = 0.5; c.fillRect(x0 + dw - Math.max(5, dw * 0.12), y0 + h / 2 - 1, 3, 2); c.globalAlpha = 1;
+      var lbl = d.k === -2 ? 'архив' : d.k === GD ? GOLD.l : DEP[d.k].l, col = d.k === -2 ? '#8C7F7C' : d.k === GD ? GOLD.c : DEP[d.k].c;
+      var ph = Math.max(11, h * 0.76), fs = ph * 0.68;
+      font(c, '800', fs);
+      var pw = Math.min(dw - 6, Math.max(ph * 1.3, c.measureText(lbl).width + ph * 0.6));
+      c.fillStyle = col; rr(c, x0 + (dw - pw) / 2, y0 + (h - ph) / 2, pw, ph, 3); c.fill();
+      c.fillStyle = d.k === GD ? GOLD.ink : '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(lbl, x0 + dw / 2, y0 + h / 2 + 0.5, pw - 2);
+    });
+  }
+  function cx(x) { return ws + (x + 0.5) * cs; }
+  function cy(y) { return wt + (y + 0.5) * cs; }
+  function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }
+  function letter(t, x, y, size, color) {
+    ctx.fillStyle = color; font(ctx, '800', size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + size * 0.05);
+  }
+  function stampFor(k) { return k === GD ? GOLD : DEP[k]; }
+  function drawStamp(x, y, k, sc) {
+    var d = stampFor(k), r = cs * 0.42 * sc;
+    if (r < 1) return;
+    ctx.fillStyle = d.c; circle(x, y, r); ctx.fill();
+    ctx.strokeStyle = k === GD ? 'rgba(59,42,0,.45)' : 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(1, cs * 0.045); circle(x, y, r * 0.78); ctx.stroke();
+    letter(d.l, x, y, r * (d.l.length > 1 ? 0.78 : 0.98), k === GD ? GOLD.ink : '#fff');
+  }
+  function drawSeg(p, k) {
+    var d = stampFor(k), s = cs * 0.76, x0 = p.x - s / 2, y0 = p.y - s / 2;
+    ctx.fillStyle = d.c; rr(ctx, x0, y0, s, s, s * 0.24); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(ctx, x0, y0, s, s * 0.45, s * 0.24); ctx.fill();
+    letter(d.l, p.x, p.y, s * (d.l.length > 1 ? 0.4 : 0.5), k === GD ? GOLD.ink : '#fff');
+  }
+  function drawHead(p, now) {
+    var s = cs * 0.9, x0 = p.x - s / 2, y0 = p.y - s / 2, f = s * 0.3, dead = S.state === 'over' && S.why !== 'full';
+    if (dead && !K.reduced && now - S.deadAt < 450) x0 += Math.sin((now - S.deadAt) / 22) * cs * 0.08;
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.strokeStyle = tok.red;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + s - f, y0); ctx.lineTo(x0 + s, y0 + f); ctx.lineTo(x0 + s, y0 + s); ctx.lineTo(x0, y0 + s); ctx.closePath();
+    ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0 + s - f, y0); ctx.lineTo(x0 + s - f, y0 + f); ctx.lineTo(x0 + s, y0 + f); ctx.closePath();
+    ctx.fillStyle = '#F3D6D1'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#DCC9C5';
+    ctx.fillRect(x0 + s * 0.14, y0 + s * 0.7, s * 0.72, Math.max(1, s * 0.06));
+    ctx.fillRect(x0 + s * 0.14, y0 + s * 0.82, s * 0.46, Math.max(1, s * 0.06));
+    ctx.fillStyle = '#E62020'; font(ctx, '800', s * 0.27); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('макет', x0 + s * 0.5, y0 + s * 0.5, s * 0.8);
+    if (dead) {
+      ctx.strokeStyle = '#E62020'; ctx.lineWidth = Math.max(2, cs * 0.1); ctx.lineCap = 'round';
+      var m = s * 0.18; ctx.beginPath(); ctx.moveTo(x0 + m, y0 + m); ctx.lineTo(x0 + s - m, y0 + s - m); ctx.moveTo(x0 + s - m, y0 + m); ctx.lineTo(x0 + m, y0 + s - m); ctx.stroke();
+    }
+  }
+  function drawMeet(m) {
+    var x0 = ws + m.x * cs, y0 = wt + m.y * cs, w = (m.vert ? 1 : m.len) * cs, h = (m.vert ? m.len : 1) * cs, ins = cs * 0.14, i;
+    ctx.fillStyle = '#5B3A26';
+    for (i = 0; i < m.len; i++) {
+      var px = m.vert ? x0 + cs / 2 : x0 + (i + 0.5) * cs, py = m.vert ? y0 + (i + 0.5) * cs : y0 + cs / 2, r = cs * 0.12, o = cs * 0.37;
+      if (m.vert) { circle(px - o, py, r); ctx.fill(); circle(px + o, py, r); ctx.fill(); }
+      else { circle(px, py - o, r); ctx.fill(); circle(px, py + o, r); ctx.fill(); }
+    }
+    ctx.fillStyle = '#8B5E3C'; rr(ctx, x0 + ins, y0 + ins, w - 2 * ins, h - 2 * ins, cs * 0.18); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.13)'; rr(ctx, x0 + ins, y0 + ins, m.vert ? (w - 2 * ins) * 0.45 : w - 2 * ins, m.vert ? h - 2 * ins : (h - 2 * ins) * 0.45, cs * 0.18); ctx.fill();
+    var len = (m.vert ? h : w) - 2 * ins - 8, fs = Math.min(cs * 0.3, 13);
+    font(ctx, '700', fs); var tw = ctx.measureText('совещание').width;
+    if (tw > len) fs = fs * len / tw;
+    ctx.save(); ctx.translate(x0 + w / 2, y0 + h / 2); if (m.vert) ctx.rotate(-Math.PI / 2);
+    if (fs >= 7) { font(ctx, '700', fs); ctx.fillStyle = '#FFF4EA'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('совещание', 0, 0.5); }
+    else {
+      var r2 = cs * 0.2; ctx.strokeStyle = '#FFF4EA'; ctx.lineWidth = Math.max(1.2, cs * 0.06); ctx.lineCap = 'round';
+      circle(0, 0, r2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r2 * 0.6); ctx.moveTo(0, 0); ctx.lineTo(r2 * 0.5, 0); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function banner(title, sub, y) {
+    var f1 = clamp(cs * 0.58, 15, 22), f2 = clamp(cs * 0.4, 12, 15), maxW = S.cols * cs - 16;
+    font(ctx, '800', f1); var w1 = ctx.measureText(title).width;
+    font(ctx, '500', f2); var w2 = ctx.measureText(sub).width;
+    var k = Math.min(1, (maxW - 28) / Math.max(w1, w2)); f1 *= k; f2 *= k;
+    var bw = Math.max(w1, w2) * k + 28, bh = f1 + f2 + 26, x0 = ws + S.cols * cs / 2 - bw / 2, y0 = y - bh / 2;
+    ctx.fillStyle = tok.panel; ctx.globalAlpha = 0.95; rr(ctx, x0, y0, bw, bh, 14); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = tok.red; ctx.lineWidth = 2; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    font(ctx, '800', f1); ctx.fillStyle = tok.ink; ctx.fillText(title, x0 + bw / 2, y0 + 11 + f1 / 2);
+    font(ctx, '500', f2); ctx.fillStyle = tok.muted; ctx.fillText(sub, x0 + bw / 2, y0 + bh - 11 - f2 / 2);
+  }
+  function draw(now) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    if (bg.width) ctx.drawImage(bg, 0, 0, W, H);
+    var live = S.state === 'run' || S.state === 'pause';
+    var p = live && S.prev && !hold && !K.reduced ? clamp(acc / stepMs(S.viz), 0, 1) : 1;
+    S.meets.forEach(drawMeet);
+    if (S.food) drawStamp(cx(S.food.x), cy(S.food.y), S.food.k, K.reduced ? 1 : 1 + 0.06 * Math.sin(now / 230));
+    if (S.eat && p < 1) drawStamp(cx(S.eat.x), cy(S.eat.y), S.eat.k, 1 - p);
+    if (S.gold) {
+      var gx = cx(S.gold.x), gy = cy(S.gold.y), left = clamp(S.gold.left / 6000, 0, 1), rot = K.reduced ? 0 : now / 900;
+      ctx.save(); ctx.translate(gx, gy); ctx.rotate(rot); ctx.strokeStyle = GOLD.c; ctx.lineWidth = Math.max(1.5, cs * 0.06); ctx.lineCap = 'round'; ctx.beginPath();
+      for (var i = 0; i < 8; i++) { var an = i * Math.PI / 4; ctx.moveTo(Math.cos(an) * cs * 0.5, Math.sin(an) * cs * 0.5); ctx.lineTo(Math.cos(an) * cs * 0.62, Math.sin(an) * cs * 0.62); }
+      ctx.stroke(); ctx.restore();
+      ctx.globalAlpha = !K.reduced && S.gold.left < 1500 && Math.floor(now / 170) % 2 ? 0.45 : 1;
+      drawStamp(gx, gy, GD, 1.05);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = tok.red; ctx.lineWidth = Math.max(2, cs * 0.07); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(gx, gy, cs * 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); ctx.stroke();
+    }
+    var n = S.body.length, pts = [];
+    for (var j = 0; j < n; j++) {
+      var a = S.prev && S.prev[j] ? S.prev[j] : S.body[j], b = S.body[j];
+      pts.push({ x: cx(a.x + (b.x - a.x) * p), y: cy(a.y + (b.y - a.y) * p) });
+    }
+    if (n > 1) {
+      ctx.strokeStyle = tok.red; ctx.globalAlpha = 0.5; ctx.lineWidth = Math.max(2, cs * 0.18); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (j = 1; j < n; j++) ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    for (j = n - 1; j >= 1; j--) drawSeg(pts[j], S.kinds[j]);
+    drawHead(pts[0], now);
+    var touch = padOn();
+    if (S.state === 'ready') banner(touch ? 'Проведите по полю или нажмите стрелку' : 'Нажмите стрелку или WASD', 'Макет поедет собирать визы', wt + S.rows * cs * 0.24);
+    if (S.state === 'pause') {
+      ctx.fillStyle = tok.panel; ctx.globalAlpha = 0.45; ctx.fillRect(ws, wt, S.cols * cs, S.rows * cs); ctx.globalAlpha = 1;
+      banner('Пауза', touch ? 'Коснитесь поля или стрелки, чтобы продолжить' : 'Пробел или P, чтобы продолжить', H / 2);
+    }
+  }
+  var last = 0;
+  function frame(now) {
+    var dt = last ? Math.min(100, now - last) : 16; last = now;
+    if (S.state === 'run' && !hold) {
+      S.clock += dt;
+      if (S.gold) { S.gold.left -= dt; if (S.gold.left <= 0) goldGone(); }
+      acc += dt;
+      for (var g = 0; g < 4 && S.state === 'run' && acc >= stepMs(S.viz); g++) { acc -= stepMs(S.viz); tick(); }
+    }
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+  function hud() {
+    K.stat('viz', S.viz); K.stat('speed', tempo(S.viz) + ' из 9');
+    var b = K.best(KEY); K.stat('best', b == null ? '—' : b);
+    if (pauseBtn) pauseBtn.textContent = S.state === 'pause' ? 'Дальше' : 'Пауза';
+  }
+
+  // свайпы по полю и стрелки под ним
+  var sw = null;
+  cv.addEventListener('pointerdown', function (e) {
+    if (K.cardOpen()) return;
+    sw = { x: e.clientX, y: e.clientY, used: false };
+    try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!sw) return;
+    var dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < Math.max(16, cs * 0.55)) return;
+    input(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u'));
+    sw.x = e.clientX; sw.y = e.clientY; sw.used = true;
+  });
+  cv.addEventListener('pointerup', function () { if (sw && !sw.used && S.state === 'pause') setPause(false); sw = null; });
+  cv.addEventListener('pointercancel', function () { sw = null; });
+  Array.prototype.forEach.call(padEl.querySelectorAll('button'), function (b) {
+    var d = b.getAttribute('data-d');
+    b.addEventListener('pointerdown', function (e) { e.preventDefault(); input(d); });
+    b.addEventListener('click', function (e) { if (e.detail === 0) input(d); });
+  });
+
+  K.mount({ room: 'Двор · Дорожка у клумбы', game: 'Змейка согласований', stats: [['viz', 'Визы', 0], ['speed', 'Темп', '1 из 9'], ['best', 'Рекорд']] });
+  pauseBtn = K.action('Пауза', function () { togglePause(); pauseBtn.blur(); });
+  K.onPause = function (why) {
+    sw = null;
+    if (S && S.state === 'run') { setPause(true); capEl.textContent = why === 'boss' ? 'Шеф ушёл? Макет ждёт вас у кулера.' : 'Макет ждёт у кулера, пока вы отвлеклись.'; }
+  };
+  K.onTheme(readTok); readTok();
+  reset();
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(renderBg);
+  requestAnimationFrame(frame);
+  if (!K.get('seen:' + KEY, false)) {
+    K.card({ stamp: 'Дорожка у клумбы', title: 'Змейка согласований',
+      text: 'Макету нужны визы шести отделов: юриста, бухгалтерии, продаж, безопасности, HR и пресс-службы. Ведите его по коридору и собирайте подписи, каждая удлиняет хвост. Стены и собственный хвост опасны. Каждые восемь виз в коридоре начинается совещание, его тоже лучше обойти. Иногда выходит Палыч с золотой визой: она стоит трёх, но ждёт всего шесть секунд.',
+      btns: [['Взять макет', function () { K.set('seen:' + KEY, true); }]] });
+  }
+  window.__g = {
+    get S() { return S; }, reset: reset, input: input, togglePause: togglePause,
+    step: function (n) { for (var i = 0; i < (n || 1) && S.state === 'run'; i++) tick(); },
+    hold: function (v) { hold = !!v; }, setFast: function (v) { fast = !!v; },
+    putFood: function (x, y, k) { S.food = { x: x, y: y, k: k == null ? 0 : k }; },
+    gold: spawnGold, meeting: spawnMeeting, stepMs: stepMs, hud: function () { hud(); },
+    geo: function () { return { cs: cs, ws: ws, wt: wt, W: W, H: H, cols: S.cols, rows: S.rows }; }
+  };
+})();
+</script>
+</body>
+</html>

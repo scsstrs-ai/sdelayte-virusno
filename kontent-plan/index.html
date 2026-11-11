@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Контент-план · Сделайте вирусно</title>
-<meta name="description" content="Блочная головоломка про контент-план: раскладывайте посты, сторис и рилсы по сетке недели.">
+<meta name="description" content="Головоломка про контент-план недели Чёрной пятницы: раскладывайте рилс, сторис, карусели и эфиры по рубрикам и дням.">
 <meta name="theme-color" content="#E62020">
 <link rel="icon" href="../kit/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,43 +16,33 @@
 <div class="kit-wrap fill">
   <header class="kit-top" id="kitTop"></header>
   <div class="kit-stats" id="kitStats"></div>
-  <main class="kit-stage" id="stage"><canvas id="cv" aria-label="Сетка контент-плана: семь дней, восемь недель"></canvas></main>
-  <p class="kit-hint">Перетащите публикацию на сетку или нажмите на неё, а потом на клетку. Заполненная неделя (строка) или день (столбец) уходят в публикацию. <kbd>Esc</kbd> прячет игру.</p>
+  <main class="kit-stage" id="stage"><canvas id="cv" aria-label="Таблица контент-плана: восемь рубрик, семь дней недели Чёрной пятницы"></canvas></main>
+  <p class="kit-hint">Перетащите публикацию из бэклога в таблицу или нажмите на неё, а потом на клетку. Заполненная рубрика (строка) или день (столбец) уходят в публикацию. <kbd>Esc</kbd> прячет игру.</p>
 </div>
 <script src="../kit/kit.js"></script>
 <script>
 (function () {
   'use strict';
   var K = window.Kit;
-  var KEY = 'kontent-plan';
-  var COLS = 7, ROWS = 8;
-  var DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  var DAYS_PL = ['понедельники', 'вторники', 'среды', 'четверги', 'пятницы', 'субботы', 'воскресенья'];
-  var TYPES = {
-    post:    { n: 'Пост',       c: '#2F5BD3' },
-    story:   { n: 'Сторис',     c: '#FF7A2F' },
-    reels:   { n: 'Рилс',       c: '#E62020' },
-    car:     { n: 'Карусель',   c: '#8E44D8' },
-    long:    { n: 'Лонгрид',    c: '#1E9E62' },
-    give:    { n: 'Розыгрыш',   c: '#E0A800' },
-    collab:  { n: 'Коллаб',     c: '#16A3B8' },
-    spec:    { n: 'Спецпроект', c: '#D6336C' },
-    launch:  { n: 'Запуск',     c: '#5B6B80' },
-    rebrand: { n: 'Ребрендинг', c: '#A0522D' }
+  var KEY = 'kontent-plan', SKEY = 'kontent-plan:v2';
+  var COLS = 7, ROWS = 8, FRI = 4;
+  var DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], DATES = ['23.11', '24.11', '25.11', '26.11', '27.11', '28.11', '29.11'];
+  var RUBS = ['Охватные', 'Продающие', 'Вовлекающие', 'Экспертные', 'Имиджевые', 'Полезные', 'Отзывы и UGC', 'Ситуативные'];
+  var LETTERS = 'ABCDEFGHI';
+  var FMT = {
+    post:   { n: 'Пост',           c: '#2F5BD3', w: 9,   d: 'картинка и текст', cells: [[0,0]] },
+    story:  { n: 'Сторис',         c: '#FF7A2F', w: 10,  d: 'вертикальная, живёт сутки', cells: [[0,0],[0,1]] },
+    reels:  { n: 'Рилс',           c: '#E62020', w: 9,   d: 'вертикальное видео', cells: [[0,0],[0,1],[0,2]] },
+    car:    { n: 'Карусель',       c: '#8E44D8', w: 7,   d: 'слайды листают вбок', cells: [[0,0],[1,0],[2,0]] },
+    live:   { n: 'Эфир',           c: '#B3121A', w: 6,   d: 'горизонтальное видео', cells: [[0,0],[1,0]] },
+    long:   { n: 'Лонгрид',        c: '#1E9E62', w: 6,   d: 'дочитают трое', cells: [[0,0],[1,0],[0,1],[1,1]] },
+    ugc:    { n: 'UGC-креатор',    c: '#D6336C', w: 6,   d: 'снимает на телефон, как умеет', rot: true, cells: [[1,0],[2,0],[0,1],[1,1]] },
+    give:   { n: 'Розыгрыш',       c: '#E0A800', w: 5,   d: 'подписка, репост, отписка', rot: true, cells: [[0,0],[1,0],[2,0],[1,1]] },
+    collab: { n: 'Коллаб',         c: '#5B6B80', w: 6,   d: 'два бренда в одном посте', rot: true, cells: [[0,0],[0,1],[1,1]] },
+    mara:   { n: 'Марафон',        c: '#16A3B8', w: 2,   d: 'пять дней подряд', cells: [[0,0],[1,0],[2,0],[3,0],[4,0]] },
+    spec:   { n: 'Спецпроект',     c: '#A0522D', w: 3,   d: 'согласуют до марта', rot: true, cells: [[0,0],[0,1],[0,2],[1,2],[2,2]] },
+    bf:     { n: 'Чёрная пятница', c: '#1C1313', w: 1.2, d: 'скидки на всё и сразу', cells: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]] }
   };
-  var SHAPES = [
-    { t: 'post',    w: 8,   cells: [[0,0]] },
-    { t: 'story',   w: 10,  cells: [[0,0],[1,0]] },
-    { t: 'reels',   w: 9,   cells: [[0,0],[1,0],[2,0]] },
-    { t: 'car',     w: 9,   cells: [[0,0],[0,1],[1,1]] },
-    { t: 'long',    w: 7,   cells: [[0,0],[1,0],[0,1],[1,1]] },
-    { t: 'give',    w: 6,   cells: [[0,0],[1,0],[2,0],[1,1]] },
-    { t: 'collab',  w: 5,   cells: [[1,0],[2,0],[0,1],[1,1]] },
-    { t: 'spec',    w: 4,   cells: [[0,0],[1,0],[2,0],[3,0]] },
-    { t: 'spec',    w: 2,   cells: [[0,0],[1,0],[2,0],[3,0],[4,0]] },
-    { t: 'launch',  w: 3,   cells: [[0,0],[0,1],[0,2],[1,2],[2,2]] },
-    { t: 'rebrand', w: 1.2, cells: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]] }
-  ];
   var PALYCH = [
     'Палыч: «А сторис кто будет смотреть?»',
     'Палыч: «Почему у конкурентов рилсы каждый день?»',
@@ -65,7 +55,12 @@
     'Палыч: «В пятницу пусто. Значит, вирусно не будет».',
     'Палыч: «Я просил план на квартал, а тут не влезает даже неделя».',
     'Палыч: «Сожмите всё в одну сторис, и дело с концом».',
-    'Палыч: «Ребрендинг подождёт. Сначала поздравление с днём бухгалтера».'
+    'Палыч: «Спецпроект подождёт. Сначала поздравление с днём бухгалтера».'
+  ];
+  var TABS = [
+    { n: 'Контент-план_ноябрь' },
+    { n: 'Медиаплан', t: 'Медиаплан ещё на согласовании у финансов' },
+    { n: 'Отчёт_финал_2', t: 'Файл открыт у Палыча. Только чтение' }
   ];
 
   function norm(cells) {
@@ -85,25 +80,26 @@
     });
     return out;
   }
-  SHAPES.forEach(function (s) { s.vars = variants(s.cells); });
-  var TOTALW = SHAPES.reduce(function (a, s) { return a + s.w; }, 0);
+  var TYPES = Object.keys(FMT);
+  TYPES.forEach(function (t) { var f = FMT[t]; f.vars = f.rot ? variants(f.cells) : [norm(f.cells)]; });
+  var TOTALW = TYPES.reduce(function (a, t) { return a + FMT[t].w; }, 0);
+  function dims(cells) {
+    return { w: Math.max.apply(null, cells.map(function (c) { return c[0]; })) + 1, h: Math.max.apply(null, cells.map(function (c) { return c[1]; })) + 1 };
+  }
   function makePiece() {
-    var r = Math.random() * TOTALW, s = SHAPES[0];
-    for (var i = 0; i < SHAPES.length; i++) { r -= SHAPES[i].w; if (r <= 0) { s = SHAPES[i]; break; } }
-    var cells = K.rand(s.vars);
-    return { t: s.t, cells: cells,
-      w: Math.max.apply(null, cells.map(function (c) { return c[0]; })) + 1,
-      h: Math.max.apply(null, cells.map(function (c) { return c[1]; })) + 1 };
+    var r = Math.random() * TOTALW, t = TYPES[0];
+    for (var i = 0; i < TYPES.length; i++) { r -= FMT[TYPES[i]].w; if (r <= 0) { t = TYPES[i]; break; } }
+    var cells = K.rand(FMT[t].vars), d = dims(cells);
+    return { t: t, cells: cells, w: d.w, h: d.h };
   }
 
-  // состояние
+  // состояние: клетка = {t, id}; pieces[id] = число клеток в целой публикации
   var S;
-  function fresh() { return { board: new Array(COLS * ROWS).fill(null), tray: [], score: 0, lines: 0, combo: 0, moves: 0, over: false }; }
+  function fresh() { return { board: new Array(COLS * ROWS).fill(null), pieces: {}, nid: 1, tray: [], score: 0, lines: 0, combo: 0, moves: 0, over: false }; }
   function fits(p, ox, oy) {
     for (var i = 0; i < p.cells.length; i++) {
       var X = ox + p.cells[i][0], Y = oy + p.cells[i][1];
-      if (X < 0 || Y < 0 || X >= COLS || Y >= ROWS) return false;
-      if (S.board[Y * COLS + X]) return false;
+      if (X < 0 || Y < 0 || X >= COLS || Y >= ROWS || S.board[Y * COLS + X]) return false;
     }
     return true;
   }
@@ -131,25 +127,34 @@
     return set;
   }
 
-  var fx = [], popup = null;
+  var fx = [], popup = null, fxText = '', fxUntil = 0;
+  function say(t, ms) { fxText = t; fxUntil = performance.now() + (ms || 3500); dirty = true; }
   function place(i, ox, oy) {
     var p = S.tray[i];
     if (!p || !fits(p, ox, oy)) return false;
-    p.cells.forEach(function (c) { S.board[(oy + c[1]) * COLS + ox + c[0]] = p.t; });
+    var id = S.nid++;
+    S.pieces[id] = p.cells.length;
+    p.cells.forEach(function (c) { S.board[(oy + c[1]) * COLS + ox + c[0]] = { t: p.t, id: id }; });
     S.tray[i] = null; S.moves++;
     S.score += p.cells.length * 10;
+    say(FMT[p.t].n + ' → ' + LETTERS[ox + 1] + (oy + 2) + ' · ' + RUBS[oy] + ' · ' + DAYS[ox] + ' ' + DATES[ox]);
     var L = fullLines(S.board), n = L.r.length + L.c.length;
     if (n) {
       S.combo++;
       var gain = 100 * n * (n + S.combo - 1);
+      var fri = L.c.indexOf(FRI) >= 0;
+      if (fri) gain *= 2;
       S.score += gain; S.lines += n;
       var now = performance.now(), set = lineCells(L);
-      Object.keys(set).forEach(function (k) { k = +k; fx.push({ k: k, t: S.board[k], t0: now }); S.board[k] = null; });
+      Object.keys(set).forEach(function (k) { k = +k; var cell = S.board[k]; if (cell) fx.push({ k: k, t: cell.t, t0: now }); S.board[k] = null; });
+      var names = L.r.map(function (y) { return '«' + RUBS[y] + '»'; }).concat(L.c.map(function (x) { return DAYS[x] + ' ' + DATES[x]; }));
       var msg;
-      if (L.r.length && L.c.length) msg = 'Закрыто недель: ' + L.r.length + ', дней: ' + L.c.length;
-      else if (L.r.length) msg = L.r.length === 1 ? 'Неделя ушла в публикацию' : 'Закрыто недель: ' + L.r.length;
-      else msg = L.c.length === 1 ? 'Все ' + DAYS_PL[L.c[0]] + ' в плане' : 'Закрыто дней: ' + L.c.length;
+      if (fri) msg = 'Чёрная пятница закрыта: охват ×2';
+      else if (n === 1 && L.r.length) msg = 'Рубрика «' + RUBS[L.r[0]] + '» закрыта на неделю';
+      else if (n === 1) msg = DAYS[L.c[0]] + ' ' + DATES[L.c[0]] + ': день закрыт';
+      else msg = 'Закрыто сразу: ' + names.join(', ');
       K.toast(msg + ' · +' + K.fmt(gain));
+      say('Опубликовано: ' + names.join(', '));
       if (S.combo >= 2) K.toast('Серия ×' + S.combo + ': алгоритмы вас любят');
       else if (Math.random() < 0.3) K.toast(K.rand(PALYCH), 3200);
       popup = { text: '+' + K.fmt(gain), t0: now };
@@ -162,21 +167,22 @@
   }
   function gameOver() {
     var r = K.record(KEY, S.score, 'охват ' + K.fmt(S.score));
-    K.del(KEY + ':state');
+    K.del(SKEY);
     hud();
     K.card({ stamp: r.isNew ? 'Новый рекорд' : 'План сорван', title: 'Контент-план не влез', text: K.rand(OVER),
       nums: [['Охват', K.fmt(S.score)], ['Закрыто', S.lines], ['Рекорд', K.fmt(r.best)]],
       btns: [['Новый план', newGame]] });
   }
-  function save() { if (!S.over) K.set(KEY + ':state', S); }
+  function save() { if (!S.over) K.set(SKEY, S); }
   function hud() {
     var b = K.best(KEY);
     K.stat('score', K.fmt(S.score)); K.stat('lines', S.lines); K.stat('best', b == null ? '—' : K.fmt(b));
   }
-  function newGame() { S = fresh(); refill(); sel = -1; drag = null; save(); hud(); dirty = true; }
+  function newGame() { S = fresh(); refill(); sel = -1; drag = null; save(); hud(); say('=ЕСЛИ(ВИРУСНО; ПРЕМИЯ; ПЕРЕДЕЛАТЬ)', 1); dirty = true; }
   function load() {
-    var st = K.get(KEY + ':state', null);
-    if (st && Array.isArray(st.board) && st.board.length === COLS * ROWS && Array.isArray(st.tray) && st.tray.length === 3 && !st.over) {
+    var st = K.get(SKEY, null);
+    if (st && Array.isArray(st.board) && st.board.length === COLS * ROWS && st.pieces && Array.isArray(st.tray) && st.tray.length === 3 && !st.over &&
+        st.board.every(function (c) { return c === null || (c && FMT[c.t]); }) && st.tray.every(function (p) { return p === null || (p && FMT[p.t]); })) {
       S = st;
       if (S.tray.every(function (t) { return !t; })) refill();
       if (!S.tray.some(canPlace)) { newGame(); return; }
@@ -185,42 +191,120 @@
     newGame();
   }
 
-  // отрисовка
+  // геометрия листа
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage');
-  var dpr = 1, cs = 40, W = 0, H = 0, bx = 0, by = 0, headH = 22, trayY = 0, slotW = 0, trayH = 0, ts = 0, labelH = 20;
-  var TRAYK = 2.6, dirty = true, tok = {};
-  function readTok() { tok = { cell: K.tok('cell'), muted: K.tok('muted'), red: K.tok('red'), ink: K.tok('panel-ink'), panel: K.tok('panel'), soft: K.tok('soft') }; dirty = true; }
+  var dpr = 1, cs = 40, W = 0, H = 0, RN = 24, RUB = 90, FXH = 30, LH = 18, HH = 30, TB = 26, bx = 0, by = 0, sheetH = 0;
+  var trayY = 0, slotW = 0, trayH = 0, ts = 0, labelH = 20, dirty = true, tok = {};
+  var SH = { bg: '#FFFFFF', line: '#E2E4E8', head: '#F3F4F6', headInk: '#5F6670', ink: '#202124', sel: '#1E8E4E', fri: '#1C1313' };
+  function readTok() { tok = { muted: K.tok('muted'), red: K.tok('red'), ink: K.tok('panel-ink'), soft: K.tok('soft'), cell: K.tok('cell') }; dirty = true; }
   function layout() {
-    var cs0 = getComputedStyle(stage);
-    var aw = stage.clientWidth - parseFloat(cs0.paddingLeft) - parseFloat(cs0.paddingRight);
-    var ah = stage.clientHeight - parseFloat(cs0.paddingTop) - parseFloat(cs0.paddingBottom);
-    aw = Math.min(aw, 470);
-    cs = Math.floor(Math.min(aw / COLS, (ah - headH - 14 - labelH) / (ROWS + TRAYK)));
-    cs = Math.max(24, Math.min(cs, 60));
-    W = cs * COLS; trayH = cs * TRAYK;
-    H = headH + cs * ROWS + 14 + trayH + labelH;
-    bx = 0; by = headH; trayY = by + cs * ROWS + 14; slotW = W / 3; ts = Math.min(cs * 0.44, (slotW - 12) / 5);
+    var st = getComputedStyle(stage);
+    var aw = stage.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+    var ah = stage.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom);
+    aw = Math.min(aw, 660);
+    var c0 = (aw - RN) / 9;
+    RUB = Math.round(Math.max(76, Math.min(128, c0 * 2.1)));
+    var fixedH = FXH + 6 + LH + HH + TB + 12 + labelH + 18;
+    cs = Math.floor(Math.min((aw - RN - RUB) / COLS, (ah - fixedH) / (ROWS + 1.65)));
+    cs = Math.max(28, Math.min(cs, 58));
+    HH = Math.max(28, Math.round(cs * 0.62));
+    W = RN + RUB + COLS * cs;
+    bx = RN + RUB; by = FXH + 6 + LH + HH;
+    sheetH = by + ROWS * cs + TB;
+    slotW = W / 3; ts = Math.max(9, Math.min(cs * 0.52, (slotW - 18) / 5));
+    trayH = ts * 3 + 18;
+    trayY = sheetH + 12;
+    H = trayY + trayH + labelH;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
     dirty = true;
   }
-  function rr(x, y, w, h, r) {
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
-  }
-  function cell(x, y, s, color, alpha, deco) {
-    var g = Math.max(2, s * 0.08);
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = color; rr(x + g / 2, y + g / 2, s - g, s - g, s * 0.2); ctx.fill();
-    if (deco && s > 14) {
-      ctx.fillStyle = 'rgba(255,255,255,.55)';
-      ctx.fillRect(x + s * 0.24, y + s * 0.3, s * 0.52, Math.max(1.5, s * 0.07));
-      ctx.fillStyle = 'rgba(255,255,255,.35)';
-      ctx.fillRect(x + s * 0.24, y + s * 0.48, s * 0.34, Math.max(1.5, s * 0.07));
-    }
+  function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+  function txt(s, x, y, font, color, align) { ctx.font = font; ctx.fillStyle = color; ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s, x, y); }
+  function fit(s, maxW, font) { ctx.font = font; if (ctx.measureText(s).width <= maxW) return s; while (s.length > 2 && ctx.measureText(s + '…').width > maxW) s = s.slice(0, -1); return s + '…'; }
+
+  // публикация: слитые клетки + значок формата
+  function fillCells(list, ox, oy, s, color, alpha) {
+    var has = {}; list.forEach(function (c) { has[c[0] + ':' + c[1]] = 1; });
+    var g = Math.max(1.5, s * 0.06);
+    ctx.globalAlpha = alpha; ctx.fillStyle = color;
+    list.forEach(function (c) {
+      var x = c[0], y = c[1];
+      var l = has[(x - 1) + ':' + y] ? 0 : g, r = has[(x + 1) + ':' + y] ? 0 : g, t = has[x + ':' + (y - 1)] ? 0 : g, b = has[x + ':' + (y + 1)] ? 0 : g;
+      ctx.fillRect(ox + x * s + l, oy + y * s + t, s - l - r, s - t - b);
+    });
     ctx.globalAlpha = 1;
   }
+  function star(cx, cy, r) { ctx.beginPath(); for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.45 : r; ctx.lineTo(cx + Math.cos(a) * q, cy + Math.sin(a) * q); } ctx.closePath(); ctx.fill(); }
+  function icon(t, list, ox, oy, s, alpha) {
+    var minX = 99, minY = 99, maxX = 0, maxY = 0, sx = 0, sy = 0;
+    list.forEach(function (c) { minX = Math.min(minX, c[0]); minY = Math.min(minY, c[1]); maxX = Math.max(maxX, c[0]); maxY = Math.max(maxY, c[1]); sx += c[0] + 0.5; sy += c[1] + 0.5; });
+    var x = ox + minX * s, y = oy + minY * s, w = (maxX - minX + 1) * s, h = (maxY - minY + 1) * s;
+    var cx = ox + sx / list.length * s, cy = oy + sy / list.length * s, u = s;
+    var col = t === 'give' ? 'rgba(80,52,0,.9)' : 'rgba(255,255,255,.95)';
+    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.2, u * 0.065); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    switch (t) {
+      case 'post':
+        rr(cx - u * 0.27, cy - u * 0.21, u * 0.54, u * 0.42, u * 0.06); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - u * 0.2, cy + u * 0.15); ctx.lineTo(cx - u * 0.06, cy - u * 0.02); ctx.lineTo(cx + u * 0.03, cy + u * 0.08); ctx.lineTo(cx + u * 0.1, cy + u * 0.01); ctx.lineTo(cx + u * 0.2, cy + u * 0.15); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + u * 0.12, cy - u * 0.09, u * 0.045, 0, 7); ctx.fill();
+        break;
+      case 'story':
+        for (var i = 0; i < 3; i++) { ctx.globalAlpha = alpha * (i ? 0.45 : 1); ctx.beginPath(); ctx.moveTo(x + w * 0.2 + i * w * 0.22, y + u * 0.16); ctx.lineTo(x + w * 0.34 + i * w * 0.22, y + u * 0.16); ctx.stroke(); }
+        ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(x + w * 0.3, y + u * 0.42, u * 0.11, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + w * 0.46, y + u * 0.42); ctx.lineTo(x + w * 0.72, y + u * 0.42); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, y + h * 0.7, u * 0.13, 0, 7); ctx.stroke();
+        break;
+      case 'reels':
+        rr(x + w * 0.2, y + u * 0.18, w * 0.6, h - u * 0.36, u * 0.12); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - u * 0.1, cy - u * 0.14); ctx.lineTo(cx + u * 0.14, cy); ctx.lineTo(cx - u * 0.1, cy + u * 0.14); ctx.closePath(); ctx.fill();
+        break;
+      case 'car':
+        list.forEach(function (c) { rr(ox + c[0] * s + u * 0.2, oy + c[1] * s + u * 0.2, u * 0.6, u * 0.48, u * 0.05); ctx.stroke(); });
+        for (var d = 0; d < 3; d++) { ctx.globalAlpha = alpha * (d ? 0.5 : 1); ctx.beginPath(); ctx.arc(cx + (d - 1) * u * 0.16, y + h - u * 0.16, u * 0.045, 0, 7); ctx.fill(); }
+        break;
+      case 'live':
+        ctx.beginPath(); ctx.arc(cx - u * 0.42, cy, u * 0.09, 0, 7); ctx.fill();
+        txt('ЭФИР', cx + u * 0.1, cy + 1, '800 ' + Math.round(u * 0.3) + 'px ' + K.FONT, col);
+        break;
+      case 'long':
+        [0.72, 0.6, 0.72, 0.42].forEach(function (k, j) { ctx.beginPath(); ctx.moveTo(x + w * 0.16, y + h * (0.24 + j * 0.17)); ctx.lineTo(x + w * (0.16 + k * 0.7), y + h * (0.24 + j * 0.17)); ctx.stroke(); });
+        break;
+      case 'ugc':
+        rr(cx - u * 0.2, cy - u * 0.3, u * 0.4, u * 0.6, u * 0.08); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy - u * 0.05, u * 0.09, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy + u * 0.2, u * 0.14, Math.PI, 0); ctx.fill();
+        break;
+      case 'give':
+        ctx.strokeRect(cx - u * 0.22, cy - u * 0.08, u * 0.44, u * 0.3);
+        ctx.fillRect(cx - u * 0.26, cy - u * 0.16, u * 0.52, u * 0.09);
+        ctx.beginPath(); ctx.moveTo(cx, cy - u * 0.16); ctx.lineTo(cx, cy + u * 0.22); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(cx - u * 0.08, cy - u * 0.22, u * 0.08, u * 0.05, -0.5, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(cx + u * 0.08, cy - u * 0.22, u * 0.08, u * 0.05, 0.5, 0, 7); ctx.stroke();
+        break;
+      case 'collab':
+        ctx.beginPath(); ctx.arc(cx - u * 0.1, cy, u * 0.17, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx + u * 0.1, cy, u * 0.17, 0, 7); ctx.stroke();
+        break;
+      case 'mara':
+        list.forEach(function (c, j) { txt(String(c[0] - minX + 1), ox + (c[0] + 0.5) * s, oy + (c[1] + 0.5) * s + 1, '800 ' + Math.round(u * 0.34) + 'px ' + K.FONT, col); });
+        break;
+      case 'spec':
+        star(cx, cy, u * 0.34);
+        break;
+      case 'bf':
+        txt('%', cx, cy - u * 0.12, '800 ' + Math.round(u * 1.05) + 'px ' + K.FONT, '#FF3B30');
+        if (u >= 26) txt('ЧЁРНАЯ ПЯТНИЦА', cx, cy + u * 0.72, '800 ' + Math.max(7, Math.round(u * 0.2)) + 'px ' + K.FONT, '#FFFFFF');
+        break;
+    }
+    ctx.restore();
+  }
+  function drawPiece(p, ox, oy, s, alpha) {
+    fillCells(p.cells, ox, oy, s, FMT[p.t].c, alpha);
+    icon(p.t, p.cells, ox, oy, s, alpha);
+  }
+
   function slotAt(x, y) {
     if (y < trayY || y > trayY + trayH + labelH) return -1;
     var i = Math.floor(x / slotW);
@@ -234,9 +318,7 @@
   function originAt(p, x, y) {
     var cx = Math.floor((x - bx) / cs), cy = Math.floor((y - by) / cs);
     if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return null;
-    var ox = Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2)));
-    var oy = Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2)));
-    return { x: ox, y: oy };
+    return { x: Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2))), y: Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2))) };
   }
   function ghostNow() {
     var p, o;
@@ -245,75 +327,143 @@
     if (p && o && fits(p, o.x, o.y)) return { p: p, ox: o.x, oy: o.y };
     return null;
   }
+  function hoverCell() {
+    if (!hover || drag) return -1;
+    var x = Math.floor((hover.x - bx) / cs), y = Math.floor((hover.y - by) / cs);
+    return x >= 0 && y >= 0 && x < COLS && y < ROWS ? y * COLS + x : -1;
+  }
+
   function draw(now) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '700 12px ' + K.FONT;
-    for (var x = 0; x < COLS; x++) { ctx.fillStyle = x >= 5 ? tok.red : tok.muted; ctx.fillText(DAYS[x], bx + x * cs + cs / 2, headH / 2); }
+    var small = cs < 44, fHead = '700 ' + (small ? 10.5 : 12) + 'px ' + K.FONT;
+    // лист
+    ctx.fillStyle = SH.bg; rr(0, 0, W, sheetH, 10); ctx.fill();
+    ctx.save(); rr(0, 0, W, sheetH, 10); ctx.clip();
+    // строка формул
+    ctx.fillStyle = SH.head; ctx.fillRect(0, 0, W, FXH + 6);
+    txt('fx', 14, FXH / 2 + 3, 'italic 700 13px ' + K.FONT, SH.headInk);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(30, 5, W - 36, FXH - 4); ctx.strokeStyle = '#D5D8DD'; ctx.lineWidth = 1; ctx.strokeRect(30.5, 5.5, W - 37, FXH - 5);
+    var hc = hoverCell(), line = fxText && now < fxUntil ? fxText : '';
+    if (!line && hc >= 0) { var cl = S.board[hc], hx = hc % COLS, hy = (hc / COLS) | 0; line = LETTERS[hx + 1] + (hy + 2) + ' · ' + RUBS[hy] + ' · ' + DAYS[hx] + ' ' + DATES[hx] + (cl ? ' · ' + FMT[cl.t].n : ''); }
+    if (!line && drag && drag.moved && S.tray[drag.i]) line = FMT[S.tray[drag.i].t].n + ': ' + FMT[S.tray[drag.i].t].d;
+    if (!line && sel >= 0 && S.tray[sel]) line = FMT[S.tray[sel].t].n + ': ' + FMT[S.tray[sel].t].d + '. Нажмите на клетку';
+    if (!line) line = '=ЕСЛИ(ВИРУСНО; ПРЕМИЯ; ПЕРЕДЕЛАТЬ)';
+    txt(fit(line, W - 50, '500 12.5px ' + K.FONT), 38, FXH / 2 + 3, '500 12.5px ' + K.FONT, SH.ink, 'left');
+    // буквы столбцов
+    var ly = FXH + 6;
+    ctx.fillStyle = SH.head; ctx.fillRect(0, ly, W, LH);
+    txt('A', RN + RUB / 2, ly + LH / 2, '500 10.5px ' + K.FONT, SH.headInk);
+    for (var x = 0; x < COLS; x++) txt(LETTERS[x + 1], bx + x * cs + cs / 2, ly + LH / 2, '500 10.5px ' + K.FONT, SH.headInk);
+    // номера строк
+    ctx.fillStyle = SH.head; ctx.fillRect(0, ly + LH, RN, HH + ROWS * cs);
+    txt('1', RN / 2, ly + LH + HH / 2, '500 10.5px ' + K.FONT, SH.headInk);
+    for (var y = 0; y < ROWS; y++) txt(String(y + 2), RN / 2, by + y * cs + cs / 2, '500 10.5px ' + K.FONT, SH.headInk);
+    // шапка таблицы
+    var hy0 = ly + LH;
+    ctx.fillStyle = '#E8F1EB'; ctx.fillRect(RN, hy0, RUB + COLS * cs, HH);
+    txt('Рубрика', RN + 8, hy0 + HH / 2, fHead, SH.ink, 'left');
+    for (x = 0; x < COLS; x++) {
+      var dx = bx + x * cs;
+      if (x === FRI) { ctx.fillStyle = SH.fri; ctx.fillRect(dx, hy0, cs, HH); }
+      var lbl = cs >= 50 ? DAYS[x] + ' ' + DATES[x] : DAYS[x] + ' ' + DATES[x].slice(0, 2);
+      txt(lbl, dx + cs / 2, hy0 + HH / 2, fHead, x === FRI ? '#FFFFFF' : (x >= 5 ? '#C62828' : SH.ink));
+    }
+    // рубрики
+    var fRub = '600 ' + (RUB < 96 ? 10.5 : 12) + 'px ' + K.FONT;
+    for (y = 0; y < ROWS; y++) txt(fit(RUBS[y], RUB - 12, fRub), RN + 8, by + y * cs + cs / 2, fRub, SH.ink, 'left');
+    // пятница слегка серая
+    ctx.fillStyle = 'rgba(28,19,19,.045)'; ctx.fillRect(bx + FRI * cs, by, cs, ROWS * cs);
 
     var ghost = S.over ? null : ghostNow(), glow = null;
     if (ghost) {
       var tmp = S.board.slice();
-      ghost.p.cells.forEach(function (c) { tmp[(ghost.oy + c[1]) * COLS + ghost.ox + c[0]] = ghost.p.t; });
-      var L = fullLines(tmp); if (L.r.length || L.c.length) glow = lineCells(L);
+      ghost.p.cells.forEach(function (c) { tmp[(ghost.oy + c[1]) * COLS + ghost.ox + c[0]] = { t: ghost.p.t, id: -1 }; });
+      var L = fullLines(tmp); if (L.r.length || L.c.length) glow = { set: lineCells(L), L: L };
     }
-    for (var y = 0; y < ROWS; y++) for (x = 0; x < COLS; x++) {
-      var k = y * COLS + x, t = S.board[k], px = bx + x * cs, py = by + y * cs;
-      if (t) {
-        cell(px, py, cs, TYPES[t].c, 1, true);
-        if (glow && glow[k]) cell(px, py, cs, '#FFFFFF', 0.45);
-      } else cell(px, py, cs, tok.cell, 1);
-    }
-    if (ghost) ghost.p.cells.forEach(function (c) {
-      var px = bx + (ghost.ox + c[0]) * cs, py = by + (ghost.oy + c[1]) * cs;
-      cell(px, py, cs, TYPES[ghost.p.t].c, glow ? 0.75 : 0.42, !!glow);
+    // сетка
+    ctx.strokeStyle = SH.line; ctx.lineWidth = 1; ctx.beginPath();
+    for (x = 0; x <= COLS; x++) { ctx.moveTo(Math.round(bx + x * cs) + 0.5, ly); ctx.lineTo(Math.round(bx + x * cs) + 0.5, by + ROWS * cs); }
+    ctx.moveTo(RN + 0.5, ly); ctx.lineTo(RN + 0.5, by + ROWS * cs);
+    for (y = 0; y <= ROWS; y++) { ctx.moveTo(0, Math.round(by + y * cs) + 0.5); ctx.lineTo(W, Math.round(by + y * cs) + 0.5); }
+    ctx.moveTo(0, ly + 0.5); ctx.lineTo(W, ly + 0.5); ctx.moveTo(0, hy0 + 0.5); ctx.lineTo(W, hy0 + 0.5);
+    ctx.stroke();
+    // публикации на доске
+    var groups = {};
+    for (var k = 0; k < COLS * ROWS; k++) { var cc = S.board[k]; if (cc) { (groups[cc.id] = groups[cc.id] || { t: cc.t, list: [] }).list.push([k % COLS, (k / COLS) | 0]); } }
+    Object.keys(groups).forEach(function (id) {
+      var g = groups[id];
+      fillCells(g.list, bx, by, cs, FMT[g.t].c, 1);
+      if (g.list.length === S.pieces[id]) icon(g.t, g.list, bx, by, cs, 1);
     });
-    fx = fx.filter(function (f) { return now - f.t0 < 340; });
+    if (glow) {
+      Object.keys(glow.set).forEach(function (k2) { k2 = +k2; ctx.fillStyle = 'rgba(30,142,78,.22)'; ctx.fillRect(bx + (k2 % COLS) * cs, by + ((k2 / COLS) | 0) * cs, cs, cs); });
+      ctx.strokeStyle = SH.sel; ctx.lineWidth = 2;
+      glow.L.r.forEach(function (yy) { ctx.strokeRect(RN + 1, by + yy * cs + 1, RUB + COLS * cs - 2, cs - 2); });
+      glow.L.c.forEach(function (xx) { ctx.strokeRect(bx + xx * cs + 1, hy0 + 1, cs - 2, HH + ROWS * cs - 2); });
+    }
+    if (ghost) drawPiece(ghost.p, bx + ghost.ox * cs, by + ghost.oy * cs, cs, glow ? 0.8 : 0.45);
+    if (hc >= 0 && !(sel >= 0)) { ctx.strokeStyle = SH.sel; ctx.lineWidth = 2; ctx.strokeRect(bx + (hc % COLS) * cs + 1, by + ((hc / COLS) | 0) * cs + 1, cs - 2, cs - 2); }
+    fx = fx.filter(function (f) { return now - f.t0 < 360; });
     fx.forEach(function (f) {
-      var q = (now - f.t0) / 340, s = cs * (1 - q * 0.6), x0 = bx + (f.k % COLS) * cs + (cs - s) / 2, y0 = by + Math.floor(f.k / COLS) * cs + (cs - s) / 2;
-      cell(x0, y0, s, TYPES[f.t] ? TYPES[f.t].c : tok.cell, 1 - q, false);
+      var q = (now - f.t0) / 360, s = cs * (1 - q * 0.6);
+      ctx.globalAlpha = 1 - q; ctx.fillStyle = FMT[f.t].c;
+      ctx.fillRect(bx + (f.k % COLS) * cs + (cs - s) / 2, by + ((f.k / COLS) | 0) * cs + (cs - s) / 2, s, s);
+      ctx.globalAlpha = 1;
     });
-    // лоток
+    // вкладки
+    var ty = by + ROWS * cs;
+    ctx.fillStyle = SH.head; ctx.fillRect(0, ty, W, TB);
+    ctx.strokeStyle = SH.line; ctx.beginPath(); ctx.moveTo(0, ty + 0.5); ctx.lineTo(W, ty + 0.5); ctx.stroke();
+    var tx = 30, fTab = '500 11px ' + K.FONT;
+    txt('+', 14, ty + TB / 2, '500 15px ' + K.FONT, SH.headInk);
+    tabRects = [];
+    TABS.forEach(function (tb, i) {
+      ctx.font = i === 0 ? '700 11px ' + K.FONT : fTab;
+      var tw = Math.min(ctx.measureText(tb.n).width + 18, W - tx - 4);
+      if (tw < 30) return;
+      if (i === 0) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(tx, ty, tw, TB); ctx.fillStyle = SH.sel; ctx.fillRect(tx, ty + TB - 3, tw, 3); }
+      txt(fit(tb.n, tw - 12, ctx.font), tx + tw / 2, ty + TB / 2 - 1, ctx.font, i === 0 ? SH.sel : SH.headInk);
+      tabRects.push({ x: tx, w: tw, i: i }); tx += tw + 2;
+    });
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 1; rr(0.5, 0.5, W - 1, sheetH - 1, 10); ctx.stroke();
+
+    // бэклог
+    txt('Бэклог публикаций', 2, trayY - 1, '700 11px ' + K.FONT, tok.muted, 'left');
     for (var i = 0; i < 3; i++) {
       var sx = i * slotW, p = S.tray[i];
-      if (sel === i && p) { ctx.fillStyle = tok.soft; rr(sx + 3, trayY, slotW - 6, trayH + labelH - 2, 14); ctx.fill(); ctx.strokeStyle = tok.red; ctx.lineWidth = 2; ctx.stroke(); }
+      if (sel === i && p) { ctx.fillStyle = tok.soft; rr(sx + 3, trayY + 6, slotW - 6, trayH + labelH - 6, 12); ctx.fill(); ctx.strokeStyle = tok.red; ctx.lineWidth = 2; ctx.stroke(); }
       if (!p) continue;
-      var lifted = drag && drag.moved && drag.i === i;
-      var ok = canPlace(p);
-      if (!lifted) {
-        var pw = p.w * ts, ph = p.h * ts, ox = sx + (slotW - pw) / 2, oy = trayY + (trayH - ph) / 2;
-        p.cells.forEach(function (c) { cell(ox + c[0] * ts, oy + c[1] * ts, ts, TYPES[p.t].c, ok ? 1 : 0.28, true); });
-      }
-      ctx.fillStyle = ok ? tok.ink : tok.muted; ctx.globalAlpha = lifted ? 0.4 : 1;
-      ctx.font = '700 12.5px ' + K.FONT; ctx.fillText(TYPES[p.t].n, sx + slotW / 2, trayY + trayH + labelH / 2 - 2);
+      var lifted = drag && drag.moved && drag.i === i, ok = canPlace(p);
+      if (!lifted) drawPiece(p, sx + (slotW - p.w * ts) / 2, trayY + 8 + (trayH - 8 - p.h * ts) / 2, ts, ok ? 1 : 0.28);
+      ctx.globalAlpha = lifted ? 0.4 : 1;
+      txt(fit(FMT[p.t].n, slotW - 8, '700 12px ' + K.FONT), sx + slotW / 2, trayY + trayH + labelH / 2 - 2, '700 12px ' + K.FONT, ok ? tok.ink : tok.muted);
       ctx.globalAlpha = 1;
     }
-    if (drag && drag.moved && S.tray[drag.i]) {
-      var dp = S.tray[drag.i], o = dragOrigin(drag);
-      dp.cells.forEach(function (c) { cell(o.left + c[0] * cs, o.top + c[1] * cs, cs, TYPES[dp.t].c, 0.92, true); });
-    }
+    if (drag && drag.moved && S.tray[drag.i]) { var o = dragOrigin(drag); drawPiece(S.tray[drag.i], o.left, o.top, cs, 0.92); }
     if (popup) {
-      var q = (now - popup.t0) / 900;
-      if (q >= 1) popup = null;
-      else {
-        ctx.globalAlpha = 1 - q; ctx.fillStyle = tok.red; ctx.font = '800 ' + Math.round(cs * 0.7) + 'px ' + K.FONT;
-        ctx.fillText(popup.text, W / 2, by + cs * ROWS / 2 - q * cs); ctx.globalAlpha = 1;
-      }
+      var q2 = (now - popup.t0) / 900;
+      if (q2 >= 1) popup = null;
+      else { ctx.globalAlpha = 1 - q2; txt(popup.text, bx + COLS * cs / 2, by + ROWS * cs / 2 - q2 * cs, '800 ' + Math.round(cs * 0.7) + 'px ' + K.FONT, '#1E8E4E'); ctx.globalAlpha = 1; }
     }
   }
+  var tabRects = [];
   function loop(now) {
-    if (dirty || fx.length || popup) { draw(now); dirty = false; }
+    if (dirty || fx.length || popup || (fxText && now < fxUntil + 50)) { draw(now); dirty = false; }
     requestAnimationFrame(loop);
   }
 
   // ввод
   var drag = null, sel = -1, hover = null;
   function pt(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-  function bump() { K.toast('Сюда не влезает'); }
   cv.addEventListener('pointerdown', function (e) {
     if (S.over || K.cardOpen()) return;
     var q = pt(e), i = slotAt(q.x, q.y);
+    if (q.y > by + ROWS * cs && q.y < sheetH) {
+      tabRects.forEach(function (r) { if (q.x >= r.x && q.x <= r.x + r.w && TABS[r.i].t) K.toast(TABS[r.i].t); });
+      return;
+    }
     if (i >= 0 && S.tray[i]) {
       drag = { i: i, x: q.x, y: q.y, sx: q.x, sy: q.y, moved: false, touch: e.pointerType !== 'mouse' };
       try { cv.setPointerCapture(e.pointerId); } catch (er) {}
@@ -321,7 +471,7 @@
     }
     if (sel >= 0 && S.tray[sel]) {
       var o = originAt(S.tray[sel], q.x, q.y);
-      if (o) { if (place(sel, o.x, o.y)) sel = -1; else bump(); }
+      if (o) { if (place(sel, o.x, o.y)) sel = -1; else K.toast('Сюда не влезает'); }
       dirty = true;
     }
   });
@@ -332,7 +482,7 @@
       if (!drag.moved && Math.hypot(q.x - drag.sx, q.y - drag.sy) > 6) { drag.moved = true; sel = -1; }
       dirty = true; return;
     }
-    if (sel >= 0) { hover = q; dirty = true; }
+    if (e.pointerType === 'mouse' || sel >= 0) { hover = q; dirty = true; }
     var i = slotAt(q.x, q.y);
     cv.style.cursor = (i >= 0 && S.tray[i]) ? 'grab' : (sel >= 0 ? 'pointer' : 'default');
   });
@@ -347,7 +497,7 @@
   cv.addEventListener('pointercancel', function () { drag = null; dirty = true; });
   cv.addEventListener('pointerleave', function () { if (!drag) { hover = null; dirty = true; } });
 
-  K.mount({ room: 'Комната 201 · Редакция', game: 'Контент-план', stats: [['score', 'Охват'], ['lines', 'Закрыто'], ['best', 'Рекорд']] });
+  K.mount({ room: 'Двор · Беседка', game: 'Контент-план', stats: [['score', 'Охват'], ['lines', 'Закрыто'], ['best', 'Рекорд']] });
   K.action('Новый план', function () { if (S.moves === 0 || confirm('Начать план заново? Текущий пропадёт.')) { K.closeCard(); newGame(); } });
   K.onPause = function () { drag = null; dirty = true; };
   K.onTheme(readTok);
@@ -357,11 +507,10 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { dirty = true; });
   requestAnimationFrame(loop);
   if (!K.get('seen:' + KEY, false)) {
-    K.card({ stamp: 'Редакция', title: 'Контент-план', text: 'Палыч хочет публикации каждый день. Ставьте посты, сторис и рилсы на сетку. Как только неделя или день заполнены целиком, они уходят в публикацию и освобождают место. Когда очередную публикацию некуда поставить, план сорван.',
+    K.card({ stamp: 'Беседка', title: 'Контент-план', text: 'Неделя Чёрной пятницы, а план пустой. Перетаскивайте рилс, сторис, карусели и эфиры из бэклога в таблицу. Как только рубрика или день заполнены целиком, они уходят в публикацию и освобождают место. Пятница 27.11 даёт двойной охват. Когда очередную публикацию некуда поставить, план сорван.',
       btns: [['Начать', function () { K.set('seen:' + KEY, true); }]] });
   }
-  // для проверки
-  window.__g = { get S() { return S; }, place: place, fits: fits, canPlace: canPlace, newGame: newGame,
+  window.__g = { get S() { return S; }, place: place, fits: fits, canPlace: canPlace, newGame: newGame, FMT: FMT,
     geo: function () { return { cs: cs, W: W, H: H, bx: bx, by: by, trayY: trayY, trayH: trayH, slotW: slotW }; } };
 })();
 </script>

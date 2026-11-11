@@ -288,7 +288,7 @@
     var t = S.tiles[+b.getAttribute('data-id')]; if (t) setCap(t.k, b.classList.contains('cov') ? 'Под другими: ' : '');
   });
 
-  K.mount({ room: 'Комната 202 · Переговорка «Синергия»', game: 'Правки', stats: [['lvl', 'Созвон'], ['left', 'Осталось'], ['best', 'Рекорд']] });
+  K.mount({ room: 'Двор · Летняя веранда', game: 'Правки', stats: [['lvl', 'Созвон'], ['left', 'Осталось'], ['best', 'Рекорд']] });
   K.action('Сначала', function () { if (confirm('Начать с первого созвона?')) { K.closeCard(); start(1); } });
 
   var st = K.get(KEY + ':state', null);
@@ -297,7 +297,7 @@
   if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
   layout(); renderTray(); hud();
   if (!K.get('seen:' + KEY, false)) {
-    K.card({ stamp: 'Переговорка «Синергия»', title: 'Правки', text: 'После созвона на макет навалились правки от всех сразу. Берите открытые правки в лоток. Три одинаковые вносятся разом и освобождают место. В лотке всего семь мест, и если он заполнится без тройки, созвон сорван.',
+    K.card({ stamp: 'Летняя веранда', title: 'Правки', text: 'После созвона на макет навалились правки от всех сразу. Берите открытые правки в лоток. Три одинаковые вносятся разом и освобождают место. В лотке всего семь мест, и если он заполнится без тройки, созвон сорван.',
       btns: [['Начать', function () { K.set('seen:' + KEY, true); }]] });
   }
   window.__g = { get S() { return S; }, pick: pick, start: start, covered: function (id) { return coveredIn(S.tiles, S.tiles[id]); } };
