@@ -46,7 +46,7 @@
     function freshRun() {
       var c = CFG[Q.grade], m = {};
       if (Q.meters) Object.keys(Q.meters).forEach(function (k) { m[k] = Q.meters[k].v; });
-      return { f: {}, nerves: Q.nerves || c.nerves, meters: m, items: [], started: false, over: false, pt: 0, left: Q.timer ? Q.timer.sec : 0, cool: -99 };
+      return { f: { keep: Object.assign({}, prog.keep || {}) }, nerves: Q.nerves || c.nerves, meters: m, items: [], started: false, over: false, pt: 0, left: Q.timer ? Q.timer.sec : 0, cool: -99 };
     }
     function save() { if (run && !run.over) K.set(runKey, run); }
 
@@ -96,6 +96,8 @@
       if (c.item) item(c.item);
       if (c.m) Object.keys(c.m).forEach(function (k) { meter(k, c.m[k]); });
       if (c.toast) K.toast(c.toast, 3200);
+      if (c.time && Q.timer) { run.left = Math.max(0, run.left + c.time); K.toast(c.time < 0 ? 'Минус ' + mmss(-c.time) + ' до срока' : 'Плюс ' + mmss(c.time) + ' к сроку'); hud(); }
+      if (c.keep) keep(c.keep);
       if (c.fn) c.fn(run.f, api);
       if (c.n) nerves(c.n);
       save();
@@ -142,8 +144,10 @@
       if (!add && i >= 0) run.items.splice(i, 1);
       renderLog();
     }
+    function keep(o) { prog.keep = prog.keep || {}; Object.keys(o).forEach(function (k) { prog.keep[k] = o[k]; run.f.keep[k] = o[k]; }); K.set('kv:prog:' + side.id, prog); }
     var api = {
       set: function (k, v) { run.f[k] = v; save(); update(); }, n: nerves, m: meter, item: item,
+      keep: function (k, v) { var o = {}; o[k] = v; keep(o); }, time: function (d) { if (Q.timer) { run.left = Math.max(0, run.left + d); hud(); } },
       has: function (s) { return run.items.indexOf(s) >= 0; }, toast: function (s) { K.toast(s, 3200); },
       end: function (id) { finish(id); }, show: function (id) { showNode(id); }, grade: function () { return Q.grade; }
     };
@@ -232,7 +236,9 @@
 
     // ——— сообщения начальства и таймер ———
     setInterval(function () {
-      if (!Q || !run || !run.started || run.over || dlgOpen || K.cardOpen() || K.bossOn() || document.hidden) return;
+      if (!Q || !run || !run.started || run.over || K.cardOpen() || K.bossOn() || document.hidden) return;
+      if (Q.timer && (Q.timer.live || !dlgOpen)) { run.left -= 1; hud(); if (run.left <= 0) { finish(Q.timer.end); return; } }
+      if (dlgOpen) return;
       var c = CFG[Q.grade];
       run.pt += 1;
       if (run.pt >= (Q.ping || c.ping)) {
@@ -242,7 +248,6 @@
         K.toast('📱 ' + who(Q.pingFrom || Q.giver).name + ': ' + msgs[run.pi], 3400);
         nerves(-(Q.pingCost || c.cost));
       }
-      if (Q.timer) { run.left -= 1; hud(); if (run.left <= 0 && !run.over) finish(Q.timer.end); }
       save();
     }, 1000);
 

@@ -50,7 +50,7 @@ button{font:inherit}
 
 .kit-over{position:absolute;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(28,19,19,.5);animation:kit-fade .2s ease-out}
 @keyframes kit-fade{from{opacity:0}to{opacity:1}}
-.kit-card{background:var(--red);color:var(--white);border-radius:22px;padding:22px 20px 20px;max-width:420px;width:100%;text-align:center;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.kit-card{max-height:100%;overflow:auto;overscroll-behavior:contain;background:var(--red);color:var(--white);border-radius:22px;padding:22px 20px 20px;max-width:420px;width:100%;text-align:center;box-shadow:0 18px 40px rgba(0,0,0,.35)}
 .kit-stamp{display:inline-block;border:2.5px solid var(--white);border-radius:999px;padding:4px 14px 6px;font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
 .kit-card h2{margin:0 0 8px;font-size:clamp(24px,5vw,30px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
 .kit-card p{margin:0 0 14px;font-size:15px;line-height:1.42}
