@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Контент-план · Сделайте вирусно</title>
+<meta name="description" content="Блочная головоломка про контент-план: раскладывайте посты, сторис и рилсы по сетке недели.">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="../kit/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="../kit/kit.css">
+</head>
+<body>
+<div class="kit-wrap fill">
+  <header class="kit-top" id="kitTop"></header>
+  <div class="kit-stats" id="kitStats"></div>
+  <main class="kit-stage" id="stage"><canvas id="cv" aria-label="Сетка контент-плана: семь дней, восемь недель"></canvas></main>
+  <p class="kit-hint">Перетащите публикацию на сетку или нажмите на неё, а потом на клетку. Заполненная неделя (строка) или день (столбец) уходят в публикацию. <kbd>Esc</kbd> прячет игру.</p>
+</div>
+<script src="../kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var K = window.Kit;
+  var KEY = 'kontent-plan';
+  var COLS = 7, ROWS = 8;
+  var DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  var DAYS_PL = ['понедельники', 'вторники', 'среды', 'четверги', 'пятницы', 'субботы', 'воскресенья'];
+  var TYPES = {
+    post:    { n: 'Пост',       c: '#2F5BD3' },
+    story:   { n: 'Сторис',     c: '#FF7A2F' },
+    reels:   { n: 'Рилс',       c: '#E62020' },
+    car:     { n: 'Карусель',   c: '#8E44D8' },
+    long:    { n: 'Лонгрид',    c: '#1E9E62' },
+    give:    { n: 'Розыгрыш',   c: '#E0A800' },
+    collab:  { n: 'Коллаб',     c: '#16A3B8' },
+    spec:    { n: 'Спецпроект', c: '#D6336C' },
+    launch:  { n: 'Запуск',     c: '#5B6B80' },
+    rebrand: { n: 'Ребрендинг', c: '#A0522D' }
+  };
+  var SHAPES = [
+    { t: 'post',    w: 8,   cells: [[0,0]] },
+    { t: 'story',   w: 10,  cells: [[0,0],[1,0]] },
+    { t: 'reels',   w: 9,   cells: [[0,0],[1,0],[2,0]] },
+    { t: 'car',     w: 9,   cells: [[0,0],[0,1],[1,1]] },
+    { t: 'long',    w: 7,   cells: [[0,0],[1,0],[0,1],[1,1]] },
+    { t: 'give',    w: 6,   cells: [[0,0],[1,0],[2,0],[1,1]] },
+    { t: 'collab',  w: 5,   cells: [[1,0],[2,0],[0,1],[1,1]] },
+    { t: 'spec',    w: 4,   cells: [[0,0],[1,0],[2,0],[3,0]] },
+    { t: 'spec',    w: 2,   cells: [[0,0],[1,0],[2,0],[3,0],[4,0]] },
+    { t: 'launch',  w: 3,   cells: [[0,0],[0,1],[0,2],[1,2],[2,2]] },
+    { t: 'rebrand', w: 1.2, cells: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]] }
+  ];
+  var PALYCH = [
+    'Палыч: «А сторис кто будет смотреть?»',
+    'Палыч: «Почему у конкурентов рилсы каждый день?»',
+    'Палыч: «Охват вижу. А продажи где?»',
+    'Палыч: «Давайте ещё розыгрыш, людям нравится»',
+    'Палыч: «Пост в субботу? Кто его прочитает?»',
+    'Палыч: «Сделайте так же, только вирусно»'
+  ];
+  var OVER = [
+    'Палыч: «В пятницу пусто. Значит, вирусно не будет».',
+    'Палыч: «Я просил план на квартал, а тут не влезает даже неделя».',
+    'Палыч: «Сожмите всё в одну сторис, и дело с концом».',
+    'Палыч: «Ребрендинг подождёт. Сначала поздравление с днём бухгалтера».'
+  ];
+
+  function norm(cells) {
+    var mx = Math.min.apply(null, cells.map(function (c) { return c[0]; }));
+    var my = Math.min.apply(null, cells.map(function (c) { return c[1]; }));
+    return cells.map(function (c) { return [c[0] - mx, c[1] - my]; }).sort(function (a, b) { return a[1] - b[1] || a[0] - b[0]; });
+  }
+  function variants(cells) {
+    var out = [], seen = {};
+    [cells, cells.map(function (c) { return [-c[0], c[1]]; })].forEach(function (base) {
+      var v = norm(base);
+      for (var i = 0; i < 4; i++) {
+        var k = JSON.stringify(v);
+        if (!seen[k]) { seen[k] = 1; out.push(v); }
+        v = norm(v.map(function (c) { return [-c[1], c[0]]; }));
+      }
+    });
+    return out;
+  }
+  SHAPES.forEach(function (s) { s.vars = variants(s.cells); });
+  var TOTALW = SHAPES.reduce(function (a, s) { return a + s.w; }, 0);
+  function makePiece() {
+    var r = Math.random() * TOTALW, s = SHAPES[0];
+    for (var i = 0; i < SHAPES.length; i++) { r -= SHAPES[i].w; if (r <= 0) { s = SHAPES[i]; break; } }
+    var cells = K.rand(s.vars);
+    return { t: s.t, cells: cells,
+      w: Math.max.apply(null, cells.map(function (c) { return c[0]; })) + 1,
+      h: Math.max.apply(null, cells.map(function (c) { return c[1]; })) + 1 };
+  }
+
+  // состояние
+  var S;
+  function fresh() { return { board: new Array(COLS * ROWS).fill(null), tray: [], score: 0, lines: 0, combo: 0, moves: 0, over: false }; }
+  function fits(p, ox, oy) {
+    for (var i = 0; i < p.cells.length; i++) {
+      var X = ox + p.cells[i][0], Y = oy + p.cells[i][1];
+      if (X < 0 || Y < 0 || X >= COLS || Y >= ROWS) return false;
+      if (S.board[Y * COLS + X]) return false;
+    }
+    return true;
+  }
+  function canPlace(p) {
+    if (!p) return false;
+    for (var y = 0; y <= ROWS - p.h; y++) for (var x = 0; x <= COLS - p.w; x++) if (fits(p, x, y)) return true;
+    return false;
+  }
+  function refill() {
+    for (var a = 0; a < 40; a++) {
+      var t = [makePiece(), makePiece(), makePiece()];
+      if (t.some(canPlace) || a === 39) { S.tray = t; return; }
+    }
+  }
+  function fullLines(board) {
+    var r = [], c = [], x, y, f;
+    for (y = 0; y < ROWS; y++) { f = true; for (x = 0; x < COLS; x++) if (!board[y * COLS + x]) { f = false; break; } if (f) r.push(y); }
+    for (x = 0; x < COLS; x++) { f = true; for (y = 0; y < ROWS; y++) if (!board[y * COLS + x]) { f = false; break; } if (f) c.push(x); }
+    return { r: r, c: c };
+  }
+  function lineCells(L) {
+    var set = {};
+    L.r.forEach(function (y) { for (var x = 0; x < COLS; x++) set[y * COLS + x] = 1; });
+    L.c.forEach(function (x) { for (var y = 0; y < ROWS; y++) set[y * COLS + x] = 1; });
+    return set;
+  }
+
+  var fx = [], popup = null;
+  function place(i, ox, oy) {
+    var p = S.tray[i];
+    if (!p || !fits(p, ox, oy)) return false;
+    p.cells.forEach(function (c) { S.board[(oy + c[1]) * COLS + ox + c[0]] = p.t; });
+    S.tray[i] = null; S.moves++;
+    S.score += p.cells.length * 10;
+    var L = fullLines(S.board), n = L.r.length + L.c.length;
+    if (n) {
+      S.combo++;
+      var gain = 100 * n * (n + S.combo - 1);
+      S.score += gain; S.lines += n;
+      var now = performance.now(), set = lineCells(L);
+      Object.keys(set).forEach(function (k) { k = +k; fx.push({ k: k, t: S.board[k], t0: now }); S.board[k] = null; });
+      var msg;
+      if (L.r.length && L.c.length) msg = 'Закрыто недель: ' + L.r.length + ', дней: ' + L.c.length;
+      else if (L.r.length) msg = L.r.length === 1 ? 'Неделя ушла в публикацию' : 'Закрыто недель: ' + L.r.length;
+      else msg = L.c.length === 1 ? 'Все ' + DAYS_PL[L.c[0]] + ' в плане' : 'Закрыто дней: ' + L.c.length;
+      K.toast(msg + ' · +' + K.fmt(gain));
+      if (S.combo >= 2) K.toast('Серия ×' + S.combo + ': алгоритмы вас любят');
+      else if (Math.random() < 0.3) K.toast(K.rand(PALYCH), 3200);
+      popup = { text: '+' + K.fmt(gain), t0: now };
+    } else S.combo = 0;
+    if (S.tray.every(function (t) { return !t; })) refill();
+    if (!S.tray.some(canPlace)) S.over = true;
+    save(); hud(); dirty = true;
+    if (S.over) setTimeout(gameOver, 500);
+    return true;
+  }
+  function gameOver() {
+    var r = K.record(KEY, S.score, 'охват ' + K.fmt(S.score));
+    K.del(KEY + ':state');
+    hud();
+    K.card({ stamp: r.isNew ? 'Новый рекорд' : 'План сорван', title: 'Контент-план не влез', text: K.rand(OVER),
+      nums: [['Охват', K.fmt(S.score)], ['Закрыто', S.lines], ['Рекорд', K.fmt(r.best)]],
+      btns: [['Новый план', newGame]] });
+  }
+  function save() { if (!S.over) K.set(KEY + ':state', S); }
+  function hud() {
+    var b = K.best(KEY);
+    K.stat('score', K.fmt(S.score)); K.stat('lines', S.lines); K.stat('best', b == null ? '—' : K.fmt(b));
+  }
+  function newGame() { S = fresh(); refill(); sel = -1; drag = null; save(); hud(); dirty = true; }
+  function load() {
+    var st = K.get(KEY + ':state', null);
+    if (st && Array.isArray(st.board) && st.board.length === COLS * ROWS && Array.isArray(st.tray) && st.tray.length === 3 && !st.over) {
+      S = st;
+      if (S.tray.every(function (t) { return !t; })) refill();
+      if (!S.tray.some(canPlace)) { newGame(); return; }
+      hud(); dirty = true; return;
+    }
+    newGame();
+  }
+
+  // отрисовка
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage');
+  var dpr = 1, cs = 40, W = 0, H = 0, bx = 0, by = 0, headH = 22, trayY = 0, slotW = 0, trayH = 0, ts = 0, labelH = 20;
+  var TRAYK = 2.6, dirty = true, tok = {};
+  function readTok() { tok = { cell: K.tok('cell'), muted: K.tok('muted'), red: K.tok('red'), ink: K.tok('panel-ink'), panel: K.tok('panel'), soft: K.tok('soft') }; dirty = true; }
+  function layout() {
+    var cs0 = getComputedStyle(stage);
+    var aw = stage.clientWidth - parseFloat(cs0.paddingLeft) - parseFloat(cs0.paddingRight);
+    var ah = stage.clientHeight - parseFloat(cs0.paddingTop) - parseFloat(cs0.paddingBottom);
+    aw = Math.min(aw, 470);
+    cs = Math.floor(Math.min(aw / COLS, (ah - headH - 14 - labelH) / (ROWS + TRAYK)));
+    cs = Math.max(24, Math.min(cs, 60));
+    W = cs * COLS; trayH = cs * TRAYK;
+    H = headH + cs * ROWS + 14 + trayH + labelH;
+    bx = 0; by = headH; trayY = by + cs * ROWS + 14; slotW = W / 3; ts = Math.min(cs * 0.44, (slotW - 12) / 5);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    dirty = true;
+  }
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+  }
+  function cell(x, y, s, color, alpha, deco) {
+    var g = Math.max(2, s * 0.08);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color; rr(x + g / 2, y + g / 2, s - g, s - g, s * 0.2); ctx.fill();
+    if (deco && s > 14) {
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.fillRect(x + s * 0.24, y + s * 0.3, s * 0.52, Math.max(1.5, s * 0.07));
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.fillRect(x + s * 0.24, y + s * 0.48, s * 0.34, Math.max(1.5, s * 0.07));
+    }
+    ctx.globalAlpha = 1;
+  }
+  function slotAt(x, y) {
+    if (y < trayY || y > trayY + trayH + labelH) return -1;
+    var i = Math.floor(x / slotW);
+    return i >= 0 && i < 3 ? i : -1;
+  }
+  function dragOrigin(d) {
+    var p = S.tray[d.i]; if (!p) return null;
+    var left = d.x - p.w * cs / 2, top = d.y - p.h * cs / 2 - (d.touch ? cs * 1.5 : 0);
+    return { x: Math.round((left - bx) / cs), y: Math.round((top - by) / cs), left: left, top: top };
+  }
+  function originAt(p, x, y) {
+    var cx = Math.floor((x - bx) / cs), cy = Math.floor((y - by) / cs);
+    if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return null;
+    var ox = Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2)));
+    var oy = Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2)));
+    return { x: ox, y: oy };
+  }
+  function ghostNow() {
+    var p, o;
+    if (drag && drag.moved) { p = S.tray[drag.i]; o = dragOrigin(drag); }
+    else if (sel >= 0 && hover && S.tray[sel]) { p = S.tray[sel]; o = originAt(p, hover.x, hover.y); }
+    if (p && o && fits(p, o.x, o.y)) return { p: p, ox: o.x, oy: o.y };
+    return null;
+  }
+  function draw(now) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '700 12px ' + K.FONT;
+    for (var x = 0; x < COLS; x++) { ctx.fillStyle = x >= 5 ? tok.red : tok.muted; ctx.fillText(DAYS[x], bx + x * cs + cs / 2, headH / 2); }
+
+    var ghost = S.over ? null : ghostNow(), glow = null;
+    if (ghost) {
+      var tmp = S.board.slice();
+      ghost.p.cells.forEach(function (c) { tmp[(ghost.oy + c[1]) * COLS + ghost.ox + c[0]] = ghost.p.t; });
+      var L = fullLines(tmp); if (L.r.length || L.c.length) glow = lineCells(L);
+    }
+    for (var y = 0; y < ROWS; y++) for (x = 0; x < COLS; x++) {
+      var k = y * COLS + x, t = S.board[k], px = bx + x * cs, py = by + y * cs;
+      if (t) {
+        cell(px, py, cs, TYPES[t].c, 1, true);
+        if (glow && glow[k]) cell(px, py, cs, '#FFFFFF', 0.45);
+      } else cell(px, py, cs, tok.cell, 1);
+    }
+    if (ghost) ghost.p.cells.forEach(function (c) {
+      var px = bx + (ghost.ox + c[0]) * cs, py = by + (ghost.oy + c[1]) * cs;
+      cell(px, py, cs, TYPES[ghost.p.t].c, glow ? 0.75 : 0.42, !!glow);
+    });
+    fx = fx.filter(function (f) { return now - f.t0 < 340; });
+    fx.forEach(function (f) {
+      var q = (now - f.t0) / 340, s = cs * (1 - q * 0.6), x0 = bx + (f.k % COLS) * cs + (cs - s) / 2, y0 = by + Math.floor(f.k / COLS) * cs + (cs - s) / 2;
+      cell(x0, y0, s, TYPES[f.t] ? TYPES[f.t].c : tok.cell, 1 - q, false);
+    });
+    // лоток
+    for (var i = 0; i < 3; i++) {
+      var sx = i * slotW, p = S.tray[i];
+      if (sel === i && p) { ctx.fillStyle = tok.soft; rr(sx + 3, trayY, slotW - 6, trayH + labelH - 2, 14); ctx.fill(); ctx.strokeStyle = tok.red; ctx.lineWidth = 2; ctx.stroke(); }
+      if (!p) continue;
+      var lifted = drag && drag.moved && drag.i === i;
+      var ok = canPlace(p);
+      if (!lifted) {
+        var pw = p.w * ts, ph = p.h * ts, ox = sx + (slotW - pw) / 2, oy = trayY + (trayH - ph) / 2;
+        p.cells.forEach(function (c) { cell(ox + c[0] * ts, oy + c[1] * ts, ts, TYPES[p.t].c, ok ? 1 : 0.28, true); });
+      }
+      ctx.fillStyle = ok ? tok.ink : tok.muted; ctx.globalAlpha = lifted ? 0.4 : 1;
+      ctx.font = '700 12.5px ' + K.FONT; ctx.fillText(TYPES[p.t].n, sx + slotW / 2, trayY + trayH + labelH / 2 - 2);
+      ctx.globalAlpha = 1;
+    }
+    if (drag && drag.moved && S.tray[drag.i]) {
+      var dp = S.tray[drag.i], o = dragOrigin(drag);
+      dp.cells.forEach(function (c) { cell(o.left + c[0] * cs, o.top + c[1] * cs, cs, TYPES[dp.t].c, 0.92, true); });
+    }
+    if (popup) {
+      var q = (now - popup.t0) / 900;
+      if (q >= 1) popup = null;
+      else {
+        ctx.globalAlpha = 1 - q; ctx.fillStyle = tok.red; ctx.font = '800 ' + Math.round(cs * 0.7) + 'px ' + K.FONT;
+        ctx.fillText(popup.text, W / 2, by + cs * ROWS / 2 - q * cs); ctx.globalAlpha = 1;
+      }
+    }
+  }
+  function loop(now) {
+    if (dirty || fx.length || popup) { draw(now); dirty = false; }
+    requestAnimationFrame(loop);
+  }
+
+  // ввод
+  var drag = null, sel = -1, hover = null;
+  function pt(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function bump() { K.toast('Сюда не влезает'); }
+  cv.addEventListener('pointerdown', function (e) {
+    if (S.over || K.cardOpen()) return;
+    var q = pt(e), i = slotAt(q.x, q.y);
+    if (i >= 0 && S.tray[i]) {
+      drag = { i: i, x: q.x, y: q.y, sx: q.x, sy: q.y, moved: false, touch: e.pointerType !== 'mouse' };
+      try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+      dirty = true; return;
+    }
+    if (sel >= 0 && S.tray[sel]) {
+      var o = originAt(S.tray[sel], q.x, q.y);
+      if (o) { if (place(sel, o.x, o.y)) sel = -1; else bump(); }
+      dirty = true;
+    }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    var q = pt(e);
+    if (drag) {
+      drag.x = q.x; drag.y = q.y;
+      if (!drag.moved && Math.hypot(q.x - drag.sx, q.y - drag.sy) > 6) { drag.moved = true; sel = -1; }
+      dirty = true; return;
+    }
+    if (sel >= 0) { hover = q; dirty = true; }
+    var i = slotAt(q.x, q.y);
+    cv.style.cursor = (i >= 0 && S.tray[i]) ? 'grab' : (sel >= 0 ? 'pointer' : 'default');
+  });
+  cv.addEventListener('pointerup', function () {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (!d.moved) { sel = sel === d.i ? -1 : d.i; dirty = true; return; }
+    var o = dragOrigin(d);
+    if (o && S.tray[d.i] && fits(S.tray[d.i], o.x, o.y)) place(d.i, o.x, o.y);
+    dirty = true;
+  });
+  cv.addEventListener('pointercancel', function () { drag = null; dirty = true; });
+  cv.addEventListener('pointerleave', function () { if (!drag) { hover = null; dirty = true; } });
+
+  K.mount({ room: 'Комната 201 · Редакция', game: 'Контент-план', stats: [['score', 'Охват'], ['lines', 'Закрыто'], ['best', 'Рекорд']] });
+  K.action('Новый план', function () { if (S.moves === 0 || confirm('Начать план заново? Текущий пропадёт.')) { K.closeCard(); newGame(); } });
+  K.onPause = function () { drag = null; dirty = true; };
+  K.onTheme(readTok);
+  readTok(); layout();
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
+  load();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { dirty = true; });
+  requestAnimationFrame(loop);
+  if (!K.get('seen:' + KEY, false)) {
+    K.card({ stamp: 'Редакция', title: 'Контент-план', text: 'Палыч хочет публикации каждый день. Ставьте посты, сторис и рилсы на сетку. Как только неделя или день заполнены целиком, они уходят в публикацию и освобождают место. Когда очередную публикацию некуда поставить, план сорван.',
+      btns: [['Начать', function () { K.set('seen:' + KEY, true); }]] });
+  }
+  // для проверки
+  window.__g = { get S() { return S; }, place: place, fits: fits, canPlace: canPlace, newGame: newGame,
+    geo: function () { return { cs: cs, W: W, H: H, bx: bx, by: by, trayY: trayY, trayH: trayH, slotW: slotW }; } };
+})();
+</script>
+</body>
+</html>

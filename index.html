@@ -162,7 +162,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     </div>
   </div>
 
-  <p class="hint">Стрелки или WASD: идти · E или пробел: говорить и листать · 1, 2, 3: выбрать ответ</p>
+  <p class="hint">Стрелки или WASD: идти · E или пробел: говорить и листать · 1, 2, 3: выбрать ответ · <a href="etazh/" style="color:inherit;font-weight:700">Второй этаж: игры на перерыв</a></p>
 </div>
 
 <script>
@@ -462,6 +462,10 @@ const ACT = {
     if (S.needTea && !S.budget) { S.tea = true; toast('Чай для Тамары Ивановны ✓'); updQuest();
       return say('Чайник', 'Вы заварили чай в кружке «Лучший бухгалтер». Не пролейте.'); }
     say('Чайник', 'Чайник. Накипь внутри старше вашего стажа.');
+  },
+  lift() {
+    say('Лифт', 'На втором этаже шесть комнат, где можно переждать совещание. Палыч туда не ходит.',
+      [{ t: 'Поехать на второй этаж', f() { location.href = 'etazh/'; } }, { t: 'Остаться в офисе' }]);
   },
 };
 for (const k in NOTE) if (!ACT[k]) ACT[k] = () => say(OBJ[k], NOTE[k]);
