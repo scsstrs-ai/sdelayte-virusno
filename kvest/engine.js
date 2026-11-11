@@ -147,6 +147,7 @@
     function keep(o) { prog.keep = prog.keep || {}; Object.keys(o).forEach(function (k) { prog.keep[k] = o[k]; run.f.keep[k] = o[k]; }); K.set('kv:prog:' + side.id, prog); }
     var api = {
       set: function (k, v) { run.f[k] = v; save(); update(); }, n: nerves, m: meter, item: item,
+      meter: function (k) { return run.meters[k]; }, nerves: function () { return run.nerves; },
       keep: function (k, v) { var o = {}; o[k] = v; keep(o); }, time: function (d) { if (Q.timer) { run.left = Math.max(0, run.left + d); hud(); } },
       has: function (s) { return run.items.indexOf(s) >= 0; }, toast: function (s) { K.toast(s, 3200); },
       end: function (id) { finish(id); }, show: function (id) { showNode(id); }, grade: function () { return Q.grade; }
