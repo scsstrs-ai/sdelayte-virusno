@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Браузерный квест про маркетолога: генеральный хочет вирусный ролик про саморезы за 15 тысяч к пятнице.">
+<meta property="og:title" content="Сделайте вирусно">
+<meta property="og:description" content="Квест про маркетолога. Соберите бриф и согласуйте ролик до пятницы.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cellipse%20cx%3D%2232%22%20cy%3D%2232%22%20rx%3D%2229%22%20ry%3D%2222%22%20fill%3D%22%23E62020%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2241%22%20font-family%3D%22Arial%22%20font-weight%3D%22700%22%20font-size%3D%2226%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%3E!%3C%2Ftext%3E%3C%2Fsvg%3E">
+<title>Сделайте вирусно</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<style>
+html{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: одна сцена на экран — шапка с нервами, полоса задания, офис сверху на всю оставшуюся высоту */
+:root{
+  --red:#E62020; --red-deep:#B3121A; --ink:#1C1313; --white:#FFFFFF;
+  --bg:#E62020; --fg:#FFFFFF; --panel:#FFFFFF; --panel-ink:#1C1313; --muted:#76615E; --soft:#FFE4E0; --stage:#2A1F1E; --veil:rgba(255,255,255,.16);
+  --font:'Onest','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#6B0F13;--panel:#221818;--panel-ink:#F6EBE9;--muted:#BFA7A3;--soft:#3B2321;--stage:#150E0E;--veil:rgba(255,255,255,.1);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#6B0F13;--panel:#221818;--panel-ink:#F6EBE9;--muted:#BFA7A3;--soft:#3B2321;--stage:#150E0E;--veil:rgba(255,255,255,.1);color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);-webkit-font-smoothing:antialiased}
+.wrap{box-sizing:border-box;height:100%;max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:10px;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px 20px;flex-wrap:wrap}
+.logo{display:inline-block;border:2.5px solid var(--white);border-radius:999px;padding:5px 18px 7px;font-weight:800;font-size:21px;letter-spacing:-.025em;line-height:1;color:var(--white)}
+.hud{display:flex;gap:10px 22px;align-items:center;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;gap:5px}
+.stat span{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+.stat b{font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.bar{width:150px;height:10px;border-radius:99px;background:var(--veil);overflow:hidden;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55)}
+.bar i{display:block;height:100%;width:80%;background:var(--white);border-radius:99px;transition:width .35s ease}
+.bar.low i{background:#FFD447}
+.quest{background:var(--panel);color:var(--panel-ink);border-radius:16px;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 22px;min-height:44px;box-sizing:border-box}
+.quest .lbl{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.quest .task{font-weight:800;font-size:15px}
+.quest .sub{color:var(--muted);font-size:13px}
+.quest ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px}
+.quest li{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:500}
+.quest li .box{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--red);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--white);box-sizing:border-box}
+.quest li em{font-style:normal;color:var(--muted)}
+.quest li.done{color:var(--muted)}
+.quest li.done b{text-decoration:line-through}
+.quest li.done .box{background:var(--red)}
+.game{position:relative;flex:1;min-height:300px;border-radius:20px;overflow:hidden;background:var(--stage)}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.toasts{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:min(320px,calc(100% - 24px));pointer-events:none;z-index:3}
+.toast{background:var(--panel);color:var(--panel-ink);border-radius:14px;padding:9px 13px;font-size:13px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);animation:tin .25s ease-out;transition:opacity .3s,transform .3s}
+.toast.ping{background:var(--ink);color:var(--white)}
+.toast.out{opacity:0;transform:translateY(-6px)}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.prompt{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:var(--white);padding:8px 14px;border-radius:99px;font-weight:700;font-size:13px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:2}
+.prompt.on{opacity:1}
+.prompt kbd{font-family:inherit;background:var(--red);border-radius:6px;padding:1px 7px;margin-right:7px}
+.dialog{position:absolute;left:12px;right:12px;bottom:12px;max-width:780px;margin:0 auto;background:var(--panel);color:var(--panel-ink);border-radius:18px;padding:16px 18px 14px;box-shadow:0 14px 40px rgba(0,0,0,.35);z-index:4}
+.who{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:8px}
+.who span{background:var(--red);color:var(--white);font-weight:800;font-size:13px;padding:3px 11px 4px;border-radius:99px}
+.who small{color:var(--muted);font-size:12.5px}
+.dialog p{margin:0 0 12px;font-size:16px;line-height:1.45;max-width:65ch}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:99px;padding:10px 16px;background:var(--red);color:var(--white);cursor:pointer;text-align:left;line-height:1.25}
+.btn:hover{background:var(--red-deep)}
+.btn:focus-visible{outline:3px solid var(--panel-ink);outline-offset:2px}
+.btn .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.22);font-size:12px;margin-right:8px}
+.overlay{position:absolute;inset:0;background:var(--bg);color:var(--fg);display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;z-index:6}
+.card{max-width:580px;display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin:auto 0}
+.card .logo{font-size:clamp(30px,7vw,56px);border-width:3px;padding:8px 28px 14px}
+.kicker{margin:0;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.9}
+.card p{margin:0;font-size:17px;line-height:1.5;max-width:52ch}
+.keys{display:flex;flex-wrap:wrap;gap:8px}
+.keys span{border:1.5px solid rgba(255,255,255,.6);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:500}
+.btn.light{background:var(--white);color:var(--red-deep);font-size:16px;padding:13px 26px;margin-top:6px}
+.btn.light:hover{background:#FFE9E6}
+.btn.light:focus-visible{outline-color:var(--white)}
+.stamp{border:4px solid var(--white);border-radius:12px;padding:6px 18px 8px;font-weight:800;font-size:clamp(26px,6vw,46px);letter-spacing:.04em;transform:rotate(-5deg);margin-bottom:6px}
+.card h2{margin:0;font-size:clamp(22px,4vw,32px);font-weight:800;letter-spacing:-.02em;text-wrap:balance;line-height:1.15}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%}
+.stats div{background:var(--veil);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.stats b{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums}
+.stats span{font-size:11.5px;opacity:.85}
+.card p.note{font-size:13px;opacity:.8}
+.pad{position:absolute;left:12px;right:12px;bottom:12px;display:none;justify-content:space-between;align-items:flex-end;pointer-events:none;z-index:2}
+.dirs{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:6px;pointer-events:auto;touch-action:none}
+.pad button{font:inherit;border:0;border-radius:14px;background:rgba(255,255,255,.88);color:var(--ink);font-size:18px;font-weight:800;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+.pad button.on{background:var(--white);transform:scale(.95)}
+.pad .act{pointer-events:auto;height:64px;padding:0 22px;border-radius:99px;background:var(--red);color:var(--white);font-size:15px;opacity:.55;box-shadow:0 0 0 3px var(--white)}
+.pad .act.ready{opacity:1}
+.only-touch{display:none}
+.hint{font-size:12px;opacity:.85;margin:0}
+@media (pointer:coarse){.pad{display:flex}.prompt{bottom:136px}.hint,.only-kb{display:none!important}.only-touch{display:inline-block}}
+.game.dlg .pad,.game.dlg .prompt{display:none}
+@media (max-width:640px){.logo{font-size:17px;padding:4px 14px 6px}.bar{width:96px}.stat b{font-size:15px}.quest{padding:9px 12px;gap:4px 14px}.quest .task{font-size:14px}.dialog p{font-size:15px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.card p{font-size:15.5px}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">сделайте вирусно</div>
+    <div class="hud">
+      <div class="stat"><span>Нервы</span><div class="bar" id="nbar" role="meter" aria-label="Нервы" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"><i id="nfill"></i></div></div>
+      <div class="stat"><span>Палыч написал</span><b id="pings">0</b></div>
+      <div class="stat"><span>Сегодня</span><b>среда</b></div>
+    </div>
+  </header>
+
+  <section class="quest" id="quest" aria-live="polite"></section>
+
+  <div class="game" id="game">
+    <canvas id="cv" aria-label="Офис компании «Саморезъ и партнёры», вид сверху"></canvas>
+    <div class="toasts" id="toasts"></div>
+    <div class="prompt" id="prompt"></div>
+
+    <div class="pad" id="pad">
+      <div class="dirs">
+        <button type="button" data-k="u" style="grid-column:2;grid-row:1" aria-label="Вверх">▲</button>
+        <button type="button" data-k="l" style="grid-column:1;grid-row:2" aria-label="Влево">◀</button>
+        <button type="button" data-k="d" style="grid-column:2;grid-row:2" aria-label="Вниз">▼</button>
+        <button type="button" data-k="r" style="grid-column:3;grid-row:2" aria-label="Вправо">▶</button>
+      </div>
+      <button type="button" class="act" id="actBtn">Говорить</button>
+    </div>
+
+    <div class="dialog" id="dlg" hidden>
+      <div class="who"><span id="dlgName"></span><small id="dlgRole"></small></div>
+      <p id="dlgText"></p>
+      <div class="choices" id="dlgCh"></div>
+    </div>
+
+    <div class="overlay" id="start">
+      <div class="card">
+        <div class="logo">сделайте вирусно</div>
+        <p class="kicker">Квест про маркетолога · демо</p>
+        <p>Вы Женя, маркетолог в ООО «Саморезъ и партнёры». Компания продаёт саморезы оптом. Сегодня среда. Генеральный директор вчера посмотрел ролик конкурентов и теперь хочет так же.</p>
+        <div class="keys">
+          <span class="only-kb">Стрелки или WASD: идти</span>
+          <span class="only-kb">E или пробел: говорить</span>
+          <span class="only-kb">1, 2, 3: выбрать ответ</span>
+          <span class="only-touch">Кнопки внизу экрана: идти и говорить</span>
+        </div>
+        <button type="button" class="btn light" id="startBtn">Начать смену</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="end" hidden>
+      <div class="card">
+        <div class="stamp" id="endStamp"></div>
+        <h2 id="endTitle"></h2>
+        <p id="endText"></p>
+        <div class="stats" id="endStats"></div>
+        <button type="button" class="btn light" id="againBtn">Ещё раз</button>
+        <p class="note">Это демо: один офис и одно задание.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">Стрелки или WASD: идти · E или пробел: говорить и листать · 1, 2, 3: выбрать ответ</p>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d'), game = $('#game');
+const dlg = $('#dlg'), dlgName = $('#dlgName'), dlgRole = $('#dlgRole'), dlgText = $('#dlgText'), dlgCh = $('#dlgCh');
+const questEl = $('#quest'), toastsEl = $('#toasts'), promptEl = $('#prompt'), actBtn = $('#actBtn');
+const nfill = $('#nfill'), nbar = $('#nbar'), pingsEl = $('#pings');
+const RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/* ---------- Карта офиса: 28 × 18 клеток ---------- */
+const T = 32;
+const MAP = [
+  "#WW#WW#WW#WW#WW#WW#WW#WW#WW#",
+  "#ccccccc#..........#ppppppp#",
+  "#ccccccc#..........#ppppppp#",
+  "#ccccccc#..DD..DD..#ppppppp#",
+  "#ccccccc#..........#ppppppp#",
+  "#ccccccc#..DD..DD..#ppppppp#",
+  "####c####..........####p####",
+  "#..........................#",
+  "#..DD..DD..DD....DD..DD..DD#",
+  "#..........................#",
+  "#..........................#",
+  "####t###............###a####",
+  "#tttttt#............#aaaaaa#",
+  "#tttttt#..DD....DD..#aaaaaa#",
+  "#tttttt#............#aaaaaa#",
+  "#tttttt#..DD....DD..#aaaaaa#",
+  "#tttttt#............#aaaaaa#",
+  "#############LL#############",
+];
+const MW = MAP[0].length, MH = MAP.length;
+const SOLID = new Set(['#', 'W', 'L', 'D']);
+const tile = (x, y) => (x < 0 || y < 0 || x >= MW || y >= MH) ? '#' : MAP[y][x];
+
+const PEOPLE = {
+  me:     { name: 'Женя', role: 'это вы, маркетолог' },
+  boss:   { name: 'Палыч', role: 'Виктор Павлович, генеральный директор' },
+  oleg:   { name: 'Олег', role: 'отдел продаж' },
+  lyosha: { name: 'Лёша', role: 'дизайнер' },
+  ksyu:   { name: 'Ксюша', role: 'SMM, стажёр' },
+  petr:   { name: 'Петрович', role: 'сисадмин' },
+  tamara: { name: 'Тамара Ивановна', role: 'главный бухгалтер' },
+};
+const NPC = [
+  { id: 'boss',   x: 4,  y: 1,  shirt: '#2B3A55', hair: '#A3A3A3', bald: true, tie: true },
+  { id: 'petr',   x: 17, y: 3,  shirt: '#6D6A5E', hair: '#C9C9C9', beard: true, glasses: true },
+  { id: 'ksyu',   x: 4,  y: 9,  shirt: '#F4A6B7', hair: '#6B3A2A', long: true },
+  { id: 'oleg',   x: 12, y: 9,  shirt: '#4C7A5A', hair: '#3B2A1E' },
+  { id: 'lyosha', x: 22, y: 9,  shirt: '#1F1F1F', hair: '#D9B44A', phones: true },
+  { id: 'tamara', x: 23, y: 15, shirt: '#7A2E5A', hair: '#B4552F', bun: true, glasses: true },
+];
+const ME = { shirt: '#E62020', hair: '#2A1E1A', badge: true };
+
+const E = [
+  { t: 'safe',     x: 1,  y: 1,   w: 1,   h: 1,    act: 'safe' },
+  { t: 'rug',      x: 6,  y: 1,   w: 1.8, h: 0.5,  act: 'rug' },
+  { t: 'bossdesk', x: 3,  y: 2,   w: 3,   h: 1,    act: 'boss' },
+  { t: 'plant',    x: 7,  y: 5,   w: 1,   h: 1,    act: 'plant' },
+  { t: 'honor',    x: 13, y: 1,   w: 2,   h: 0.45, act: 'honor' },
+  { t: 'board',    x: 21, y: 1,   w: 3,   h: 0.45, act: 'board' },
+  { t: 'mtable',   x: 21, y: 2.5, w: 5,   h: 1.8 },
+  { t: 'cooler',   x: 1,  y: 7,   w: 1,   h: 1,    act: 'cooler' },
+  { t: 'printer',  x: 26, y: 7,   w: 1,   h: 1,    act: 'printer' },
+  { t: 'plant',    x: 26, y: 10,  w: 1,   h: 1,    act: 'plant' },
+  { t: 'plant',    x: 8,  y: 12,  w: 1,   h: 1,    act: 'plant' },
+  { t: 'plant',    x: 19, y: 12,  w: 1,   h: 1,    act: 'plant' },
+  { t: 'fridge',   x: 1,  y: 12,  w: 1,   h: 1,    act: 'fridge' },
+  { t: 'ktable',   x: 2,  y: 13.6,w: 2,   h: 1.2 },
+  { t: 'counter',  x: 2,  y: 16,  w: 4,   h: 1 },
+  { t: 'kettle',   x: 3,  y: 16,  w: 1,   h: 1,    act: 'kettle', nosolid: true },
+  { t: 'micro',    x: 5,  y: 16,  w: 1,   h: 1,    act: 'micro', nosolid: true },
+  { t: 'cabinet',  x: 26, y: 12,  w: 1,   h: 2,    act: 'cabinet' },
+  { t: 'plant',    x: 21, y: 12,  w: 1,   h: 1,    act: 'plant' },
+  { t: 'tdesk',    x: 22, y: 14,  w: 3,   h: 1,    act: 'tamara' },
+  { t: 'lift',     x: 13, y: 17,  w: 2,   h: 1,    act: 'lift', nosolid: true },
+];
+const BODIES = [];
+for (const e of E) if (!e.nosolid) BODIES.push(e);
+for (const n of NPC) BODIES.push({ x: n.x + .2, y: n.y + .25, w: .6, h: .65 });
+
+const ROOMS = [
+  ['КАБИНЕТ ГЕНЕРАЛЬНОГО', 4.5, 4.55, 'rgba(255,225,160,.55)'],
+  ['ПЕРЕГОВОРКА «БАЙКАЛ»', 23.5, 5.45, 'rgba(95,50,15,.5)'],
+  ['ОПЕНСПЕЙС', 14.5, 9.55, 'rgba(60,40,30,.3)'],
+  ['КУХНЯ', 5.3, 12.55, 'rgba(50,55,65,.4)'],
+  ['БУХГАЛТЕРИЯ', 24, 16.55, 'rgba(40,50,30,.42)'],
+  ['ЛИФТ', 14, 16.8, 'rgba(60,40,30,.42)'],
+];
+
+const OBJ = { cooler: 'Кулер', printer: 'Принтер', safe: 'Сейф', rug: 'Ковёр', plant: 'Фикус', honor: 'Доска почёта', board: 'Доска', fridge: 'Холодильник', kettle: 'Чайник', micro: 'Микроволновка', cabinet: 'Шкаф с папками', lift: 'Лифт' };
+const NOTE = {
+  printer: 'Принтер пишет: «Замятие бумаги в лотке 2». Пишет так с понедельника.',
+  safe: 'Сейф. Говорят, внутри лежит бюджет на маркетинг. Код знает только Палыч.',
+  rug: 'Ковёр на стене. Палыч говорит, что он для акустики.',
+  plant: 'Фикус. Его поливает бухгалтерия. И разговаривает с ним тоже.',
+  honor: 'Доска почёта. Вашей фотографии тут пока нет.',
+  board: 'На доске написано: «KPI: охваты, вовлечённость, синергия». Продаж в списке нет.',
+  fridge: 'Записка на холодильнике: «Кто взял мой йогурт, тот знает, что он сделал. Т. И.»',
+  micro: 'Микроволновка. Пахнет рыбой с прошлого корпоратива.',
+  cabinet: 'Папки «Закрывающие документы, 2011–2026». Трогать нельзя.',
+  lift: 'Лифт. До пятницы домой не отпускают.',
+};
+const KSYU = [
+  'Я веду наши соцсети. В Telegram у нас 12 подписчиков, девять из них бухгалтерия.',
+  'Палыч каждую неделю просит «что-нибудь вирусное». Ты не первый, кому он это говорит.',
+  'Если что, у меня есть кольцевая лампа. Одна на весь офис.',
+];
+const PETR = [
+  'Перезагружать пробовал?',
+  'Пароль от Wi-Fi на стикере под клавиатурой у Палыча. Я тебе этого не говорил.',
+  'Сервер стоит в кладовке. Не открывай, он греется.',
+];
+const PINGS = ['Ну что там?', 'Конкуренты опять что-то выложили', 'Может, в тикток?', 'Жена говорит, надо через нейросеть', 'Пятница скоро, помнишь?', 'Скинь, что есть', '👍', 'Ты где?'];
+
+/* ---------- Состояние ---------- */
+let S, P, dlgOpen = false, dlgAt = 0, curChoices = [], promptKey, dpr = 1, zoom = 1, tnow = 0;
+const keys = { u: false, d: false, l: false, r: false };
+
+function fresh() {
+  return { step: 0, running: false, over: false, nerves: 80, pings: 0, pingT: 8, askedGoal: false,
+    client: false, budget: false, idea: null, needTea: false, tea: false, coolAt: -99, bossNag: 0, cyc: {}, endAt: 0 };
+}
+function newGame() {
+  S = fresh();
+  P = { x: 14, y: 16.35, fx: 0, fy: -1, moving: false };
+  closeDlg(); updQuest(); updHud(); promptKey = undefined;
+}
+
+/* ---------- Интерфейс ---------- */
+function updHud() {
+  nfill.style.width = S.nerves + '%';
+  nbar.classList.toggle('low', S.nerves < 30);
+  nbar.setAttribute('aria-valuenow', S.nerves);
+  pingsEl.textContent = S.pings;
+}
+function li(done, a, b) {
+  return '<li class="' + (done ? 'done' : '') + '"><span class="box">' + (done ? '✓' : '') + '</span><span><b>' + a + '</b> <em>' + b + '</em></span></li>';
+}
+function updQuest() {
+  let h = '<span class="lbl">Задание</span>';
+  if (S.step === 0) h += '<span class="task">Зайдите к генеральному</span><span class="sub">Кабинет слева наверху. Его все зовут Палыч.</span>';
+  else if (S.step === 1) {
+    let teaNote = '';
+    if (S.needTea && !S.budget) teaNote = S.tea ? ' · чай в руках' : ' · сначала чай с кухни';
+    h += '<span class="task">Соберите бриф</span><ul>' +
+      li(S.client, 'Кто покупает', 'Олег, продажи') +
+      li(S.budget, 'Сколько денег на самом деле', 'Тамара Ивановна' + teaNote) +
+      li(!!S.idea, 'Идея ролика', 'Лёша, дизайнер') + '</ul>';
+  } else if (S.step === 2) h += '<span class="task">Несите бриф Палычу</span><span class="sub">Бриф собран. Осталось согласовать.</span>';
+  else h += '<span class="task">Смена окончена</span>';
+  questEl.innerHTML = h;
+}
+function toast(msg, cls) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+  toastsEl.appendChild(el);
+  while (toastsEl.children.length > 3) toastsEl.firstChild.remove();
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 3600);
+}
+function setPrompt(n) {
+  const k = n ? n.id : '';
+  if (k === promptKey) return;
+  promptKey = k;
+  if (!n) { promptEl.classList.remove('on'); actBtn.classList.remove('ready'); return; }
+  const p = PEOPLE[n.id];
+  promptEl.innerHTML = '<kbd class="only-kb">E</kbd>' + (p ? 'Поговорить: ' + p.name : 'Осмотреть: ' + OBJ[n.id].toLowerCase());
+  promptEl.classList.add('on'); actBtn.classList.add('ready');
+}
+
+/* ---------- Диалоги ---------- */
+function say(who, text, choices) {
+  if (S.over) return;
+  const p = PEOPLE[who] || { name: who, role: '' };
+  dlgName.textContent = p.name;
+  dlgRole.textContent = p.role || '';
+  dlgText.textContent = text;
+  curChoices = (choices && choices.length) ? choices : [{ t: 'Дальше' }];
+  dlgCh.textContent = '';
+  curChoices.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn';
+    if (curChoices.length > 1) { const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1; b.appendChild(n); }
+    b.appendChild(document.createTextNode(c.t));
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => { if (performance.now() - dlgAt > 300) choose(i); });
+    dlgCh.appendChild(b);
+  });
+  dlg.hidden = false; dlgOpen = true; dlgAt = performance.now();
+  game.classList.add('dlg'); setPrompt(null);
+}
+function choose(i) { const c = curChoices[i]; closeDlg(); if (c && c.f) c.f(); }
+function closeDlg() { dlg.hidden = true; dlgOpen = false; curChoices = []; game.classList.remove('dlg'); }
+function cyc(id, arr) { const i = S.cyc[id] || 0; S.cyc[id] = i + 1; return arr[i % arr.length]; }
+function nerves(d) {
+  S.nerves = Math.max(0, Math.min(100, S.nerves + d)); updHud();
+  if (S.nerves <= 0 && !S.over) finish('burnout');
+}
+function checkBrief() {
+  if (S.step === 1 && S.client && S.budget && S.idea) { S.step = 2; toast('Бриф собран. Несите Палычу'); updQuest(); }
+}
+function startBrief() { S.step = 1; S.pingT = 8; toast('Новое задание: собрать бриф'); updQuest(); }
+
+function talkBoss() {
+  if (S.step === 0) {
+    say('boss', 'А, Женя. Заходи. Видел, у конкурентов ролик залетел? Миллион просмотров! Нам нужно так же. Вирусно.', [
+      { t: 'А какая у ролика цель?', f: () => { S.askedGoal = true;
+        say('boss', 'Цель… чтобы было вирусно. Ну и чтобы продажи, само собой. Бюджет пятнадцать тысяч, к пятнице.', [{ t: 'Понял, займусь', f: startBrief }]); } },
+      { t: 'Сделаем, Виктор Павлович!', f: () =>
+        say('boss', 'Вот! Это я понимаю, подход. Бюджет пятнадцать тысяч, к пятнице. Детали сам соберёшь.', [{ t: 'Есть', f: startBrief }]) },
+    ]);
+  } else if (S.step === 1) {
+    nerves(-3);
+    say('boss', cyc('boss', ['Ну что, уже завирусилось?', 'Женя, я жду. Пятница не резиновая.', 'Сходи к Олегу, к Лёше, к Тамаре Ивановне. Чего у меня стоишь?']));
+  } else if (S.step === 2) pitch();
+}
+function pitch() {
+  say('boss', 'Ну, показывай. Только чтобы вирусно.', [{ t: 'Показываю', f: () =>
+    say('me', 'Покупают у нас прорабы. Им важно одно: чтобы машина пришла к семи утра. Telegram они читают в шесть, по дороге на объект. Бюджет на руки 12 500.', [{ t: 'Дальше', f: pitchIdea }]) }]);
+}
+function pitchIdea() {
+  if (S.idea === 'dance') {
+    say('me', 'Идея: прораб танцует с шуруповёртом под ремикс.', [{ t: 'Дальше', f: () =>
+      say('boss', 'Ха! Вот! Это вирусно! Запускай.', [{ t: 'Запускаем', f: () => finish('dance') }]) }]);
+  } else if (S.idea === 'battle') {
+    say('me', 'Идея: саморез против гвоздя. Бой в замедленной съёмке, саморез побеждает.', [{ t: 'Дальше', f: () =>
+      say('boss', 'Смешно. И про нас. Давай.', [{ t: 'Запускаем', f: () => finish('battle') }]) }]);
+  } else {
+    say('me', 'Идея: снимаем одним кадром, как наша машина приезжает на объект в 6:40. Прораб смотрит на часы и говорит: «Вовремя».', [{ t: 'Дальше', f: () => {
+      const ch = [];
+      if (S.askedGoal) ch.push({ t: 'Вы сами сказали: цель — продажи', f: () =>
+        say('boss', 'Сказал, да. Ладно, запускай. Но если не завирусится…', [{ t: 'Запускаем', f: () => finish('honest') }]) });
+      ch.push({ t: 'Доверьтесь мне', f: () => { nerves(-15);
+        say('boss', 'Под твою ответственность, Женя.', [{ t: 'Запускаем', f: () => finish('honest') }]); } });
+      ch.push({ t: 'Ладно, добавим танцующего прораба', f: () => { S.idea = 'dance';
+        say('boss', 'Вот! Сразу бы так.', [{ t: 'Запускаем', f: () => finish('dance') }]); } });
+      say('boss', 'А где тут вирусность?', ch);
+    } }]);
+  }
+}
+function talkOleg() {
+  if (S.step === 0) return say('oleg', 'Ты новенький? Палыч тебя искал. Его кабинет слева наверху.');
+  if (S.client) return say('oleg', 'Привезли вовремя, вот и вся реклама.');
+  say('oleg', 'Вирусный ролик? Про саморезы? Ну-ну.', [
+    { t: 'Кто у нас вообще покупает?', f: () => { S.client = true;
+      say('oleg', 'Прорабы. Им не до смешного. Им надо, чтобы машина пришла к семи утра, а не к обеду. Telegram читают в шесть, пока едут на объект.');
+      toast('Бриф: кто покупает ✓'); updQuest(); checkBrief(); } },
+    { t: 'Ладно, не буду отвлекать', f: () => say('oleg', 'Давай. Я тут до семи. Вечера.') },
+  ]);
+}
+function talkTamara() {
+  if (S.step === 0) return say('tamara', 'Женечка, все вопросы через Виктора Павловича.');
+  if (S.budget) return say('tamara', 'Закрывающие не забудь, Женечка. Я всё помню.');
+  if (S.tea) {
+    S.tea = false; S.budget = true; nerves(5);
+    say('tamara', 'Ой, спасибо. Значит, так. Пятнадцать тысяч — это вместе с налогами. Плюс договор, плюс закрывающие. На руки остаётся двенадцать с половиной.');
+    toast('Бриф: реальный бюджет ✓'); updQuest(); checkBrief(); return;
+  }
+  S.needTea = true; updQuest();
+  say('tamara', 'Бюджет? Я без чая ничего не обсуждаю. Чайник на кухне. Кружка моя, с надписью.');
+}
+function talkLyosha() {
+  if (S.step === 0) return say('lyosha', '(снимает один наушник) А? Палыч тебя искал.');
+  if (!S.idea) return pickIdea();
+  say('lyosha', 'Раскадровка готова. Неси Палычу.', [{ t: 'Отлично' }, { t: 'Давай поменяем идею', f: pickIdea }]);
+}
+function pickIdea() {
+  const tip = S.client ? ' Ты же был у Олега, тебе виднее.' : ' Олег из продаж знает клиентов, но с ним скучно.';
+  say('lyosha', 'Ролик за пятнадцать тысяч к пятнице? Окей, сниму на телефон. Что снимаем?' + tip, [
+    { t: 'Прораб танцует с шуруповёртом', f: () => setIdea('dance') },
+    { t: 'Саморез против гвоздя: бой', f: () => setIdea('battle') },
+    { t: 'Честно: машина приезжает в 6:40', f: () => setIdea('honest') },
+  ]);
+}
+function setIdea(k) {
+  const first = !S.idea; S.idea = k;
+  say('lyosha', 'Понял. Делаю раскадровку.');
+  if (first) toast('Бриф: идея ролика ✓');
+  updQuest(); checkBrief();
+}
+const ACT = {
+  boss: talkBoss, oleg: talkOleg, tamara: talkTamara, lyosha: talkLyosha,
+  ksyu: () => say('ksyu', cyc('ksyu', KSYU)),
+  petr: () => say('petr', cyc('petr', PETR)),
+  cooler() {
+    const now = performance.now() / 1000;
+    if (now - S.coolAt < 8) return say('Кулер', 'Вы уже пили. Кулер смотрит на вас с осуждением.');
+    S.coolAt = now; nerves(10);
+    say('Кулер', 'Бульк. Стакан холодной воды. Нервы +10.');
+  },
+  kettle() {
+    if (S.tea) return say('Чайник', 'Чай уже в руках. Несите, пока горячий.');
+    if (S.needTea && !S.budget) { S.tea = true; toast('Чай для Тамары Ивановны ✓'); updQuest();
+      return say('Чайник', 'Вы заварили чай в кружке «Лучший бухгалтер». Не пролейте.'); }
+    say('Чайник', 'Чайник. Накипь внутри старше вашего стажа.');
+  },
+};
+for (const k in NOTE) if (!ACT[k]) ACT[k] = () => say(OBJ[k], NOTE[k]);
+
+/* ---------- Концовки ---------- */
+const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return (m === 1 && h !== 11) ? a : (m >= 2 && m <= 4 && (h < 10 || h >= 20)) ? b : c; };
+const ENDS = {
+  dance:   { stamp: 'ВИРУСНО', title: '840 000 просмотров и 3 заявки', views: 840000, leads: 3,
+    text: () => 'Ролик разлетелся по чатам. Палыч переслал его всем родственникам. Прорабы посмеялись и купили саморезы там, где привозят к семи утра. Продажи не выросли.' },
+  battle:  { stamp: 'НЕПЛОХО', title: '120 000 просмотров и 14 заявок', views: 120000, leads: 14,
+    text: () => 'Смешно и про продукт. Пара прорабов запомнила название. Олег сказал «нормально», а для отдела продаж это высшая похвала.' },
+  honest:  { stamp: 'СОГЛАСОВАНО', title: '9 400 просмотров и 41 заявка', views: 9400, leads: 41,
+    text: () => 'Вирусно не вышло. Зато ролик посмотрели те, кто покупает: прорабы в шесть утра по дороге на объект. Олег просит ещё таких. Палыч рассказывает, что так и задумывал.' +
+      (S.askedGoal ? ' Вы спросили про цель в первом же разговоре, и это помогло защитить идею.' : '') },
+  burnout: { stamp: 'БОЛЬНИЧНЫЙ', title: 'Нервы закончились раньше пятницы', views: 0, leads: 0,
+    text: () => 'Палыч написал вам ' + S.pings + ' ' + plural(S.pings, 'раз', 'раза', 'раз') + '. Кулер стоял у входа в опенспейс. В следующий раз пейте воду.' },
+};
+function finish(k) {
+  if (S.over) return;
+  S.over = true; S.step = 3; S.running = false; S.endAt = performance.now();
+  closeDlg(); setPrompt(null); updQuest();
+  const e = ENDS[k];
+  $('#endStamp').textContent = e.stamp;
+  $('#endTitle').textContent = e.title;
+  $('#endText').textContent = e.text();
+  const rows = [['Просмотры', e.views.toLocaleString('ru-RU')], ['Заявки', e.leads], ['Палыч написал', S.pings], ['Нервы', S.nerves + ' из 100']];
+  const st = $('#endStats'); st.textContent = '';
+  for (const [a, b] of rows) { const d = document.createElement('div'); const bb = document.createElement('b'); bb.textContent = b; const s = document.createElement('span'); s.textContent = a; d.append(bb, s); st.appendChild(d); }
+  $('#end').hidden = false;
+}
+
+/* ---------- Движение и взаимодействие ---------- */
+function blocked(x, y) {
+  const r = 0.28;
+  for (let ty = Math.floor(y - r); ty <= Math.floor(y + r); ty++)
+    for (let tx = Math.floor(x - r); tx <= Math.floor(x + r); tx++)
+      if (SOLID.has(tile(tx, ty))) return true;
+  for (const b of BODIES) if (x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h) return true;
+  return false;
+}
+function rectDist(px, py, x, y, w, h) {
+  const dx = Math.max(x - px, 0, px - (x + w)), dy = Math.max(y - py, 0, py - (y + h));
+  return Math.hypot(dx, dy);
+}
+function nearest() {
+  let best = null, bd = 0.95;
+  for (const n of NPC) { const d = rectDist(P.x, P.y, n.x + .1, n.y + .1, .8, .8); if (d < bd) { bd = d; best = n; } }
+  for (const e of E) { if (!e.act) continue; const d = rectDist(P.x, P.y, e.x, e.y, e.w, e.h); if (d < bd) { bd = d; best = { id: e.act }; } }
+  return best;
+}
+function interact() {
+  if (!S.running || S.over || dlgOpen) return;
+  const n = nearest();
+  if (n && ACT[n.id]) ACT[n.id]();
+}
+function update(dt) {
+  if (!S.running || S.over || dlgOpen) { P.moving = false; if (!dlgOpen) setPrompt(null); return; }
+  let mx = (keys.r ? 1 : 0) - (keys.l ? 1 : 0), my = (keys.d ? 1 : 0) - (keys.u ? 1 : 0);
+  if (mx || my) {
+    const l = Math.hypot(mx, my); mx /= l; my /= l;
+    const sp = 4.4 * dt;
+    const nx = P.x + mx * sp; if (!blocked(nx, P.y)) P.x = nx;
+    const ny = P.y + my * sp; if (!blocked(P.x, ny)) P.y = ny;
+    P.fx = mx; P.fy = my; P.moving = true;
+  } else P.moving = false;
+  if (S.step >= 1 && S.step < 3) {
+    S.pingT += dt;
+    if (S.pingT >= 20) { S.pingT = 0; S.pings++; toast('📱 Палыч: ' + PINGS[(S.pings - 1) % PINGS.length], 'ping'); nerves(-6); }
+  }
+  if (!S.over) setPrompt(nearest());
+}
+function targets() {
+  if (S.step === 0 || S.step === 2) return ['boss'];
+  if (S.step === 1) {
+    const r = [];
+    if (!S.client) r.push('oleg');
+    if (!S.budget) r.push(S.needTea && !S.tea ? 'kettle' : 'tamara');
+    if (!S.idea) r.push('lyosha');
+    return r;
+  }
+  return [];
+}
+function targetPos(id) {
+  const n = NPC.find(n => n.id === id);
+  if (n) return { x: (n.x + .5) * T, y: (n.y + .5) * T - 42 };
+  const e = E.find(e => e.act === id);
+  return { x: (e.x + e.w / 2) * T, y: e.y * T - 8 };
+}
+
+/* ---------- Рисование ---------- */
+const F = c => { ctx.fillStyle = c; };
+function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+function circ(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }
+function diamond(x, y, r) { ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); }
+
+function floorTile(c, tx, ty, x, y) {
+  if (c === 'c') {
+    F('#8C1C21'); ctx.fillRect(x, y, T, T);
+    F('#A9333A'); diamond(x + 16, y + 16, 10); F('#E1B24E'); diamond(x + 16, y + 16, 4);
+    if (tx === 1) ctx.fillRect(x + 3, y, 2, T);
+    if (tx === 7) ctx.fillRect(x + T - 5, y, 2, T);
+    if (ty === 1) ctx.fillRect(x, y + 3, T, 2);
+    if (ty === 5 && tx !== 4) ctx.fillRect(x, y + T - 5, T, 2);
+    return;
+  }
+  if (c === 't') {
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { F(((tx * 2 + i + ty * 2 + j) % 2) ? '#F2F0EB' : '#D6DADF'); ctx.fillRect(x + i * 16, y + j * 16, 16, 16); }
+    return;
+  }
+  if (c === 'p') {
+    F('#C99561'); ctx.fillRect(x, y, T, T); F('rgba(105,58,22,.3)');
+    for (let r = 0; r < 4; r++) { ctx.fillRect(x, y + r * 8, T, 1); const off = ((ty * 4 + r) % 2) * 8; for (let k = off; k < T; k += 16) ctx.fillRect(x + k, y + r * 8, 1, 8); }
+    return;
+  }
+  if (c === 'a') { F('#D3D8C0'); ctx.fillRect(x, y, T, T); F('rgba(0,0,0,.06)'); ctx.fillRect(x, y, T, 1); ctx.fillRect(x, y, 1, T); return; }
+  F('#E5DFD3'); ctx.fillRect(x, y, T, T); F('rgba(60,40,30,.06)'); ctx.fillRect(x, y, T, 1); ctx.fillRect(x, y, 1, T);
+  if (((tx * 13 + ty * 7) % 5) === 0) { F('rgba(60,40,30,.07)'); ctx.fillRect(x + 6, y + 9, 3, 2); ctx.fillRect(x + 20, y + 22, 2, 2); }
+}
+function deskTile(tx, ty, x, y) {
+  F('#3F3938'); rr(x + 9, y + 23, 14, 9, 4); ctx.fill();
+  F('#D6BC93'); rr(x + 1, y + 2, T - 2, 21, 3); ctx.fill(); F('#B99C72'); ctx.fillRect(x + 1, y + 21, T - 2, 2);
+  F('#262121'); rr(x + 8, y + 4, 16, 10, 2); ctx.fill(); F(((tx + ty) % 3 === 0) ? '#E62020' : '#79B2D8'); ctx.fillRect(x + 10, y + 6, 12, 6);
+  F('#F3F0EA'); ctx.fillRect(x + 9, y + 16, 14, 4);
+  if ((tx * 7 + ty * 3) % 4 === 0) { F('#FFFFFF'); circ(x + 27, y + 9, 3); ctx.fill(); F('#E62020'); circ(x + 27, y + 9, 1.6); ctx.fill(); }
+}
+function drawTile(tx, ty) {
+  const c = tile(tx, ty), x = tx * T, y = ty * T;
+  if (c === '#' || c === 'W' || c === 'L') {
+    F('#3A2E2D'); ctx.fillRect(x, y, T, T); F('#4E3F3D'); ctx.fillRect(x, y, T, 4);
+    if (c === 'W') { F('#BCD7E8'); ctx.fillRect(x + 3, y + 7, T - 6, T - 14); F('rgba(255,255,255,.8)'); for (let i = x + 5; i < x + T - 4; i += 4) ctx.fillRect(i, y + 7, 1.5, T - 14); }
+    if (c === 'L') { F('#AEB6BD'); ctx.fillRect(tx === 13 ? x + 3 : x, y + 2, T - 3, T - 9); if (tx === 13) { F('#80888F'); ctx.fillRect(x + T - 1, y + 2, 1, T - 9); } }
+    return;
+  }
+  floorTile(c, tx, ty, x, y);
+  if (c === 'D') deskTile(tx, ty, x, y);
+}
+const DRAW = {
+  safe(x, y, w, h) { F('#4A5056'); rr(x + 3, y + 3, w - 6, h - 6, 3); ctx.fill(); F('#2E3337'); ctx.fillRect(x + 3, y + h - 8, w - 6, 5); F('#D0D0D0'); circ(x + w / 2, y + h / 2 - 2, 5); ctx.fill(); F('#4A5056'); circ(x + w / 2, y + h / 2 - 2, 2); ctx.fill(); },
+  rug(x, y, w, h) { F('#A3272C'); ctx.fillRect(x, y, w, h); F('#E1B24E'); ctx.fillRect(x + 2, y + 2, w - 4, 1.5); ctx.fillRect(x + 2, y + h - 3.5, w - 4, 1.5); for (let i = x + 6; i < x + w - 3; i += 8) diamond(i, y + h / 2, 3); },
+  bossdesk(x, y, w, h) {
+    F('#6B3D20'); rr(x + 1, y + 1, w - 2, h - 3, 3); ctx.fill(); F('#55301A'); ctx.fillRect(x + 1, y + h - 6, w - 2, 3);
+    F('#2F7D4A'); ctx.beginPath(); ctx.ellipse(x + 13, y + 11, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill(); F('#F6E6A0'); circ(x + 13, y + 12, 2); ctx.fill();
+    ctx.save(); ctx.translate(x + w / 2, y + 13); ctx.rotate(-0.08); F('#FFFFFF'); ctx.fillRect(-10, -7, 20, 14); F('#C9C3B8'); ctx.fillRect(-7, -4, 14, 1); ctx.fillRect(-7, -1, 14, 1); ctx.fillRect(-7, 2, 9, 1); ctx.restore();
+    F('#1D1D1D'); rr(x + w - 22, y + 7, 12, 9, 2); ctx.fill(); F('#E1B24E'); ctx.fillRect(x + w / 2 - 12, y + h - 10, 24, 3);
+  },
+  plant(x, y) { F('#A65628'); rr(x + 10, y + 18, 12, 11, 2); ctx.fill(); F('#2E7031'); circ(x + 11, y + 11, 5.5); ctx.fill(); circ(x + 21, y + 12, 5.5); ctx.fill(); F('#3E8E41'); circ(x + 16, y + 13, 7.5); ctx.fill(); F('#58A85C'); circ(x + 16, y + 7, 4.5); ctx.fill(); },
+  honor(x, y, w, h) { F('#7A1E22'); ctx.fillRect(x, y, w, h + 2); F('#E1B24E'); ctx.font = '800 5px Onest, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ДОСКА ПОЧЁТА', x + w / 2, y + 4.5); F('#F3E7D2'); for (let i = 0; i < 5; i++) ctx.fillRect(x + 6 + i * 11, y + 8, 7, 6); },
+  board(x, y, w, h) { F('#FAFAF8'); ctx.fillRect(x, y, w, h + 1); F('#A0A6AB'); ctx.fillRect(x, y + h - 1, w, 2); F('#E62020'); ctx.fillRect(x + 6, y + 4, 26, 1.6); ctx.fillRect(x + 6, y + 8, 40, 1.6); F('#2B6CB0'); ctx.fillRect(x + 54, y + 4, 30, 1.6); ctx.fillRect(x + 54, y + 8, 18, 1.6); },
+  mtable(x, y, w, h) {
+    F('#3F3938'); for (let i = 0; i < 4; i++) { const cx = x + 20 + i * (w - 40) / 3; circ(cx, y - 4, 5.5); ctx.fill(); circ(cx, y + h + 4, 5.5); ctx.fill(); }
+    F('#B98552'); rr(x, y, w, h, 10); ctx.fill(); F('rgba(255,255,255,.16)'); rr(x + 6, y + 5, w - 12, 7, 4); ctx.fill();
+    F('#9FD3F0'); for (let i = 0; i < 3; i++) { circ(x + 40 + i * 40, y + h / 2 + 4, 3); ctx.fill(); }
+  },
+  cooler(x, y) { F('#ECECEC'); rr(x + 8, y + 12, 16, 18, 3); ctx.fill(); F('#8CC8EF'); circ(x + 16, y + 11, 8.5); ctx.fill(); F('rgba(255,255,255,.65)'); circ(x + 13, y + 8, 2.5); ctx.fill(); F('#E62020'); ctx.fillRect(x + 11, y + 21, 3, 3); F('#2B6CB0'); ctx.fillRect(x + 18, y + 21, 3, 3); },
+  printer(x, y) { F('#C3C7CB'); rr(x + 3, y + 8, 26, 19, 3); ctx.fill(); F('#999FA5'); ctx.fillRect(x + 3, y + 21, 26, 6); F('#FFFFFF'); ctx.fillRect(x + 9, y + 3, 14, 10); F((Math.floor(tnow * 2) % 2) ? '#E62020' : '#6B1010'); circ(x + 25, y + 12, 1.8); ctx.fill(); },
+  fridge(x, y) { F('#F6F6F4'); rr(x + 3, y + 1, 26, 29, 3); ctx.fill(); F('#CFCFCB'); ctx.fillRect(x + 3, y + 11, 26, 1.2); F('#B9B9B5'); ctx.fillRect(x + 24, y + 4, 2, 5); ctx.fillRect(x + 24, y + 15, 2, 10); ctx.save(); ctx.translate(x + 12, y + 20); ctx.rotate(0.12); F('#FFE36B'); ctx.fillRect(-5, -5, 10, 10); ctx.restore(); },
+  ktable(x, y, w, h) { F('#E7D2AE'); rr(x, y, w, h, 8); ctx.fill(); F('#FFFFFF'); circ(x + 14, y + 12, 3.5); ctx.fill(); F('#E62020'); circ(x + 44, y + 24, 3.5); ctx.fill(); },
+  counter(x, y, w, h) { F('#B7BDC2'); ctx.fillRect(x, y, w, h); F('#D3D7DA'); ctx.fillRect(x, y, w, 4); F('#98A1A8'); rr(x + 5, y + 9, 18, 14, 4); ctx.fill(); F('#C9D3DA'); circ(x + 14, y + 16, 3); ctx.fill(); },
+  kettle(x, y) {
+    F('#DADADA'); circ(x + 16, y + 18, 7.5); ctx.fill(); F('#8E8E8E'); ctx.fillRect(x + 22, y + 15, 6, 3); F('#333333'); ctx.fillRect(x + 12, y + 9, 8, 3);
+    if (S.needTea && !S.tea && !S.budget && !RM) { F('rgba(255,255,255,.75)'); for (let i = 0; i < 2; i++) { const k = (tnow * 0.9 + i * 0.5) % 1; circ(x + 16 + Math.sin(k * 6 + i) * 2, y + 6 - k * 12, 2.6 * (1 - k) + 0.6); ctx.fill(); } }
+  },
+  micro(x, y) { F('#2D2D2D'); rr(x + 3, y + 8, 26, 18, 2); ctx.fill(); F('#6C7A84'); ctx.fillRect(x + 6, y + 11, 15, 12); F('#5BDB5B'); ctx.fillRect(x + 23, y + 12, 4, 2); },
+  cabinet(x, y, w, h) { F('#7A593A'); ctx.fillRect(x + 2, y + 1, w - 4, h - 2); const cs = ['#E62020', '#2B6CB0', '#3E8E41', '#E1B24E', '#7A2E5A']; for (let j = 0; j * 13 + 12 < h; j++) for (let i = 0; i < 5; i++) { F(cs[(i + j * 2) % 5]); ctx.fillRect(x + 5 + i * 4.6, y + 4 + j * 13, 3.4, 10); } },
+  tdesk(x, y, w, h) { F('#C8AC82'); rr(x + 1, y + 2, w - 2, h - 4, 3); ctx.fill(); F('#FFFFFF'); ctx.fillRect(x + 7, y + 6, 15, 11); F('#EDE8DD'); ctx.fillRect(x + 9, y + 8, 15, 11); F('#3A3A3A'); rr(x + w / 2 - 6, y + 6, 12, 16, 2); ctx.fill(); F('#A8D1A9'); ctx.fillRect(x + w / 2 - 4, y + 8, 8, 4); F('#FFFFFF'); circ(x + w - 15, y + 15, 4.5); ctx.fill(); F('#E62020'); circ(x + w - 15, y + 15, 2.5); ctx.fill(); },
+};
+function person(x, y, o, fx, fy, mv) {
+  const b = (mv && !RM) ? Math.sin(tnow * 16) * 1.3 : 0, by = y + b;
+  F('rgba(0,0,0,.2)'); ctx.beginPath(); ctx.ellipse(x, y + 12, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+  if (mv) { F('#2A2424'); const s = RM ? 0 : Math.sin(tnow * 16) * 3; rr(x - 6, y + 5 + s, 5, 7, 2); ctx.fill(); rr(x + 1, y + 5 - s, 5, 7, 2); ctx.fill(); }
+  F(o.shirt); rr(x - 9, by - 4, 18, 15, 7); ctx.fill();
+  if (o.tie) { F('#E62020'); ctx.beginPath(); ctx.moveTo(x - 1.8, by - 3); ctx.lineTo(x + 1.8, by - 3); ctx.lineTo(x + 2.6, by + 6); ctx.lineTo(x, by + 9); ctx.lineTo(x - 2.6, by + 6); ctx.closePath(); ctx.fill(); }
+  if (o.badge) { F('#FFFFFF'); rr(x + 2.5, by + 1, 5, 6, 1); ctx.fill(); F('#E62020'); ctx.fillRect(x + 3.5, by + 2, 3, 1.5); }
+  const back = fy < -0.5;
+  F('#F1C6A1'); circ(x, by - 10, 7.5); ctx.fill();
+  F(o.hair);
+  if (o.bald) {
+    ctx.fillRect(x - 7.8, by - 12, 2.6, 5); ctx.fillRect(x + 5.2, by - 12, 2.6, 5);
+    if (back) { ctx.beginPath(); ctx.arc(x, by - 10, 7.9, 0.15 * Math.PI, 0.85 * Math.PI); ctx.fill(); }
+  } else if (back) { circ(x, by - 10, 7.9); ctx.fill(); }
+  else { ctx.beginPath(); ctx.arc(x, by - 10.5, 7.9, Math.PI, 0); ctx.fill(); if (o.long) { ctx.fillRect(x - 8, by - 11, 3.2, 12); ctx.fillRect(x + 4.8, by - 11, 3.2, 12); } }
+  if (o.bun) { circ(x, by - 19, 4); ctx.fill(); }
+  if (o.beard && !back) { ctx.beginPath(); ctx.arc(x, by - 8, 6.4, 0.05 * Math.PI, 0.95 * Math.PI); ctx.fill(); }
+  if (!back) {
+    const ex = fx * 2.2, ey = Math.max(-0.5, fy) * 1.6;
+    F('#2A1E1A'); circ(x - 2.7 + ex, by - 8.5 + ey, 1.15); ctx.fill(); circ(x + 2.7 + ex, by - 8.5 + ey, 1.15); ctx.fill();
+    if (o.glasses) { ctx.strokeStyle = '#222222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x - 2.7 + ex, by - 8.5 + ey, 2.4, 0, Math.PI * 2); ctx.moveTo(x + 5.1 + ex, by - 8.5 + ey); ctx.arc(x + 2.7 + ex, by - 8.5 + ey, 2.4, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  if (o.phones) { ctx.strokeStyle = '#151515'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, by - 11, 8.6, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke(); F('#E62020'); rr(x - 10.5, by - 13, 4, 7, 2); ctx.fill(); rr(x + 6.5, by - 13, 4, 7, 2); ctx.fill(); }
+}
+function marker(x, y) {
+  const b = RM ? 0 : Math.sin(tnow * 5) * 2;
+  F('#E62020'); circ(x, y + b, 7.5); ctx.fill(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.8; ctx.stroke();
+  F('#FFFFFF'); ctx.font = '800 11px Onest, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', x, y + b + 0.5);
+}
+function render() {
+  const cw = cv.width, ch = cv.height; if (!cw || !ch) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); F('#241C1B'); ctx.fillRect(0, 0, cw, ch);
+  const z = zoom * dpr, vw = cw / z, vh = ch / z, ww = MW * T, wh = MH * T;
+  let cx = P.x * T - vw / 2, cy = P.y * T - vh / 2;
+  cx = ww <= vw ? (ww - vw) / 2 : Math.max(0, Math.min(ww - vw, cx));
+  cy = wh <= vh ? (wh - vh) / 2 : Math.max(0, Math.min(wh - vh, cy));
+  ctx.setTransform(z, 0, 0, z, -cx * z, -cy * z);
+  const x0 = Math.max(0, Math.floor(cx / T)), x1 = Math.min(MW - 1, Math.floor((cx + vw) / T));
+  const y0 = Math.max(0, Math.floor(cy / T)), y1 = Math.min(MH - 1, Math.floor((cy + vh) / T));
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) drawTile(tx, ty);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 9px Onest, sans-serif';
+  for (const r of ROOMS) { F(r[3]); ctx.fillText(r[0], r[1] * T, r[2] * T); }
+  for (const e of E) { const d = DRAW[e.t]; if (d) d(e.x * T, e.y * T, e.w * T, e.h * T); }
+
+  const list = NPC.map(n => {
+    const px = (n.x + .5) * T, py = (n.y + .5) * T, dx = P.x * T - px, dy = P.y * T - py, d = Math.hypot(dx, dy) || 1;
+    const near = d < 4 * T;
+    return { o: n, x: px, y: py, fx: near ? dx / d : 0, fy: near ? Math.max(-0.3, dy / d) : 0.4, m: false };
+  });
+  list.push({ o: ME, x: P.x * T, y: P.y * T, fx: P.fx, fy: P.fy, m: P.moving });
+  list.sort((a, b) => a.y - b.y);
+  for (const p of list) person(p.x, p.y, p.o, p.fx, p.fy, p.m);
+
+  ctx.font = '700 9px Onest, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const n of NPC) {
+    const px = (n.x + .5) * T, py = (n.y + .5) * T - 28, name = PEOPLE[n.id].name, w = ctx.measureText(name).width + 10;
+    F('rgba(27,18,18,.8)'); rr(px - w / 2, py - 6.5, w, 13, 6.5); ctx.fill(); F('#FFFFFF'); ctx.fillText(name, px, py + 0.5);
+  }
+  const tg = S.over ? [] : targets();
+  for (const id of tg) { const p = targetPos(id); marker(p.x, p.y); }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (tg.length && S.running) {
+    let best = null, bd = Infinity;
+    for (const id of tg) { const p = targetPos(id); const d = Math.hypot(p.x - P.x * T, p.y - P.y * T); if (d < bd) { bd = d; best = p; } }
+    const sx = (best.x - cx) * z, sy = (best.y - cy) * z, m = 26 * dpr;
+    if (sx < 0 || sy < 0 || sx > cw || sy > ch) {
+      const ex = Math.max(m, Math.min(cw - m, sx)), ey = Math.max(m, Math.min(ch - m, sy)), a = Math.atan2(sy - ey, sx - ex);
+      ctx.save(); ctx.translate(ex, ey); ctx.rotate(a);
+      F('#E62020'); ctx.beginPath(); ctx.moveTo(14 * dpr, 0); ctx.lineTo(-8 * dpr, -10 * dpr); ctx.lineTo(-8 * dpr, 10 * dpr); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2 * dpr; ctx.stroke(); ctx.restore();
+    }
+  }
+}
+
+/* ---------- Размер, управление, цикл ---------- */
+function resize() {
+  const r = game.getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.max(1, Math.round(r.width * dpr));
+  cv.height = Math.max(1, Math.round(r.height * dpr));
+  const fit = Math.min(r.width / (MW * T), r.height / (MH * T));
+  zoom = Math.max(fit, 0.95);
+}
+if ('ResizeObserver' in window) new ResizeObserver(resize).observe(game); else addEventListener('resize', resize);
+
+const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
+function startGame() { $('#start').hidden = true; S.running = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+function again() { newGame(); $('#end').hidden = true; S.running = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+$('#startBtn').addEventListener('click', startGame);
+$('#againBtn').addEventListener('click', again);
+
+addEventListener('keydown', e => {
+  const c = e.code, act = (c === 'Enter' || c === 'Space' || c === 'KeyE' || c === 'NumpadEnter');
+  if (!$('#start').hidden) { if (act && !e.repeat) { e.preventDefault(); startGame(); } return; }
+  if (!$('#end').hidden) { if (act && !e.repeat && performance.now() - S.endAt > 900) { e.preventDefault(); again(); } return; }
+  if (dlgOpen) {
+    const m = c.match(/^(?:Digit|Numpad)(\d)$/);
+    if (m) { const i = +m[1] - 1; if (i >= 0 && i < curChoices.length) { e.preventDefault(); choose(i); } return; }
+    if (act) {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (document.activeElement && dlgCh.contains(document.activeElement)) { document.activeElement.click(); return; }
+      if (curChoices.length === 1) choose(0);
+    }
+    return;
+  }
+  const k = KEYMAP[c];
+  if (k) { keys[k] = true; e.preventDefault(); return; }
+  if (act) { e.preventDefault(); if (!e.repeat) interact(); }
+});
+addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+document.querySelectorAll('#pad [data-k]').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
+  const off = () => { keys[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerdown', on);
+  b.addEventListener('pointerup', off);
+  b.addEventListener('pointercancel', off);
+  b.addEventListener('lostpointercapture', off);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+actBtn.addEventListener('pointerdown', e => { e.preventDefault(); if (dlgOpen) { if (curChoices.length === 1) choose(0); } else interact(); });
+
+newGame();
+resize();
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; tnow = now / 1000;
+  update(dt); render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
