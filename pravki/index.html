@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Правки · Сделайте вирусно</title>
+<meta name="description" content="Маджонг из правок, которые получает маркетолог: собирайте три одинаковые правки, пока лоток не переполнился.">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="../kit/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.pv{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+.board{position:relative;flex:1 1 auto;width:100%}
+.tile{position:absolute;width:var(--tw);height:var(--th);border:0;padding:0;margin:0;border-radius:calc(var(--tw)*.16);background:#FFFCF5;color:#1C1313;font-family:var(--font);
+  box-shadow:0 0 0 1px rgba(60,30,20,.12),3px 4px 0 #E2D2C8,4px 7px 12px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden;cursor:pointer;transition:transform .12s ease,filter .15s ease}
+.tile .band{flex:none;height:21%;background:var(--c);color:#fff;font-size:calc(var(--tw)*.125);font-weight:700;letter-spacing:.02em;display:grid;place-items:center;white-space:nowrap;overflow:hidden;text-transform:uppercase}
+.tile .w{flex:1;display:grid;place-items:center;text-align:center;font-weight:800;font-size:calc(var(--tw)*.175);line-height:1.02;padding:2px 3px;letter-spacing:-.02em;word-break:break-word}
+.tile.cov{filter:brightness(.8) saturate(.45) contrast(.9);cursor:default}
+.tile:not(.cov):hover{transform:translateY(-3px)}
+.tile:focus-visible{outline:3px solid #FFD447;outline-offset:2px}
+.sm .tile .band{font-size:0}
+.tile .w.lg{font-size:calc(var(--tw)*.145)}
+.cap{min-height:2.6em;font-size:13.5px;line-height:1.3;text-align:center;color:var(--panel-ink);max-width:560px;padding:0 6px}
+.cap b{color:var(--red)}
+.tray{display:flex;gap:5px;background:var(--cell);border-radius:16px;padding:6px}
+.slot{width:var(--sw);height:calc(var(--sw)*1.12);border-radius:calc(var(--sw)*.16);background:rgba(0,0,0,.05);position:relative}
+.slot .tile{position:static;width:100%;height:100%;cursor:default;box-shadow:0 0 0 1px rgba(60,30,20,.12),2px 3px 0 #E2D2C8;--tw:var(--sw)}
+.slot .tile:hover{transform:none}
+.slot.pop .tile{animation:pop .2s ease-out}
+.slot.hit .tile{animation:hit .24s ease-in forwards}
+.tray.warn{box-shadow:0 0 0 3px var(--red)}
+@keyframes pop{from{transform:scale(.6);opacity:.4}to{transform:none;opacity:1}}
+@keyframes hit{to{transform:scale(.4) translateY(-20px);opacity:0}}
+.tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.tools button{font-weight:700;font-size:13px;border:0;border-radius:99px;padding:8px 14px;background:var(--soft);color:var(--red-deep);cursor:pointer}
+.tools button:disabled{opacity:.45;cursor:default}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tools button{color:#FFB8B0}}
+@media (prefers-reduced-motion: reduce){.slot.pop .tile,.slot.hit .tile{animation:none}}
+</style>
+</head>
+<body>
+<div class="kit-wrap fill">
+  <header class="kit-top" id="kitTop"></header>
+  <div class="kit-stats" id="kitStats"></div>
+  <main class="kit-stage" id="stage">
+    <div class="pv" id="pv">
+      <div class="board" id="board" aria-label="Стопка правок"></div>
+      <div class="cap" id="cap" aria-live="polite">Нажмите на открытую правку, и она уйдёт в лоток. Три одинаковые вносятся разом.</div>
+      <div class="tray" id="tray" aria-label="Лоток на семь правок"></div>
+      <div class="tools"><button type="button" id="undo">Отменить</button><button type="button" id="shuf">Перемешать</button></div>
+    </div>
+  </main>
+  <p class="kit-hint">Тёмные правки ещё прикрыты другими. Когда в лотке соберутся семь правок без тройки, созвон сорван. <kbd>Esc</kbd> прячет игру.</p>
+</div>
+<script src="../kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var K = window.Kit;
+  var KEY = 'pravki';
+  var C = 6, R = 7, TRAY = 7;
+  var SRC = {
+    gd:   { n: 'Генеральный', s: 'Гендир', c: '#E62020' },
+    own:  { n: 'Собственник', s: 'Собственник', c: '#8E44D8' },
+    wife: { n: 'Жена генерального', s: 'Жена ГД', c: '#D6336C' },
+    law:  { n: 'Юрист', s: 'Юрист', c: '#2F5BD3' },
+    sale: { n: 'Продажи', s: 'Продажи', c: '#1E9E62' },
+    fin:  { n: 'Финансы', s: 'Финансы', c: '#C99300' },
+    hr:   { n: 'HR', s: 'HR', c: '#16A3B8' },
+    it:   { n: 'Безопасность', s: 'Безопасн.', c: '#5B6B80' },
+    reg:  { n: 'Регионы', s: 'Регионы', c: '#FF7A2F' }
+  };
+  var PR = [
+    { s: 'gd',   w: 'ЛОГО ↑',    t: 'Сделайте логотип побольше' },
+    { s: 'law',  w: '«ЛУЧШИЙ»',  t: 'Уберите слово «лучший», ФАС не пропустит' },
+    { s: 'sale', w: 'ТЕЛЕФОН',   t: 'Телефон крупнее, люди не видят' },
+    { s: 'wife', w: 'ЦВЕТ',      t: 'Мне этот цвет не нравится' },
+    { s: 'fin',  w: '−30%',      t: 'Бюджет режем на треть, результат оставляем' },
+    { s: 'gd',   w: 'ВИРУСНО',   t: 'Нужно, чтобы было вирусно' },
+    { s: 'own',  w: 'МОЁ ФОТО',  t: 'Поставьте моё фото на баннер' },
+    { s: 'law',  w: 'ERID',      t: 'Где маркировка рекламы?' },
+    { s: 'sale', w: 'ВСЕ SKU',   t: 'Покажите все сорок позиций, это же ассортимент' },
+    { s: 'gd',   w: 'КАК У НИХ', t: 'Сделайте как у конкурентов, только лучше' },
+    { s: 'hr',   w: 'ВАКАНСИЯ',  t: 'Вставьте вакансию кладовщика, всё равно место есть' },
+    { s: 'wife', w: 'КОТИК',     t: 'А можно туда котика?' },
+    { s: 'law',  w: 'СНОСКА',    t: 'Добавьте сноску на двенадцать строк' },
+    { s: 'reg',  w: 'САМАРА',    t: 'В регионах так не работает' },
+    { s: 'sale', w: 'QR',        t: 'Добавьте QR-код, а лучше три' },
+    { s: 'it',   w: 'ПАРОЛЬ',    t: 'Доступ к рекламному кабинету по заявке через неделю' },
+    { s: 'own',  w: 'ГИМН',      t: 'Пусть в ролике играет гимн компании' },
+    { s: 'gd',   w: 'ЯРЧЕ',      t: 'Поярче, но чтобы солидно' }
+  ];
+  var LOSE = [
+    'Семь правок висят одновременно. Дизайнер ушёл на больничный.',
+    'Правки противоречат друг другу. Генеральный просит собрать ещё один созвон.',
+    'Юрист и продажи спорят в чате уже сорок минут. Макет никто не видел.'
+  ];
+  var WIN = [
+    'Все правки внесены. Генеральный: «Хорошо. Но давайте ещё посмотрим вариант, где логотип побольше».',
+    'Макет утверждён. До следующего созвона.',
+    'Согласовано всеми. Жена генерального поставила лайк.'
+  ];
+
+  function spec(L) {
+    var trip = [8, 11, 14, 17, 20, 22, 24][Math.min(L - 1, 6)];
+    return { trip: trip, types: Math.min(PR.length, 5 + L), layers: Math.min(4, 2 + Math.floor((L - 1) / 2)) };
+  }
+  function overlap(a, b) { return Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1; }
+  function genPositions(T, layers) {
+    var shares = [0.42, 0.28, 0.18, 0.12].slice(0, layers), sum = shares.reduce(function (a, b) { return a + b; }, 0);
+    var tiles = [], left = T;
+    for (var z = 0; z < layers && left > 0; z++) {
+      var cnt = z === layers - 1 ? left : Math.min(left, Math.round(T * shares[z] / sum));
+      var off = (z % 2) * 0.5, below = tiles.filter(function (t) { return t.z === z - 1; });
+      var groups = [], seen = {};
+      for (var y = off; y <= R - 1 - off + 1e-6; y++) for (var x = off; x <= C - 1 - off + 1e-6; x++) {
+        var key = x + ':' + y; if (seen[key]) continue;
+        var mx = C - 1 - x, mk = mx + ':' + y; seen[key] = seen[mk] = 1;
+        var g = [{ x: x, y: y, z: z }]; if (Math.abs(mx - x) > 1e-6) g.push({ x: mx, y: y, z: z });
+        if (z > 0 && !g.every(function (p) { return below.some(function (b) { return overlap(p, b); }); })) continue;
+        groups.push(g);
+      }
+      var cx = (C - 1) / 2, cy = (R - 1) / 2;
+      groups.forEach(function (g) { g.d = Math.abs(g[0].x - cx) / C + Math.abs(g[0].y - cy) / R + Math.random() * 0.45; });
+      groups.sort(function (a, b) { return a.d - b.d; });
+      var taken = 0, rest = [];
+      groups.forEach(function (g) { if (taken + g.length <= cnt) { g.forEach(function (p) { tiles.push(p); }); taken += g.length; } else rest = rest.concat(g); });
+      for (var i = 0; i < rest.length && taken < cnt; i++) { tiles.push(rest[i]); taken++; }
+      left -= taken;
+    }
+    // если не влезло, добиваем свободными местами на нижних слоях
+    for (var zz = 0; left > 0 && zz < 2; zz++) {
+      var o = (zz % 2) * 0.5;
+      for (var yy = o; yy <= R - 1 - o + 1e-6 && left > 0; yy++) for (var xx = o; xx <= C - 1 - o + 1e-6 && left > 0; xx++) {
+        if (!tiles.some(function (t) { return t.z === zz && t.x === xx && t.y === yy; })) { tiles.push({ x: xx, y: yy, z: zz }); left--; }
+      }
+    }
+    return tiles;
+  }
+  function coveredIn(list, t) {
+    for (var i = 0; i < list.length; i++) { var o = list[i]; if (o !== t && !o.gone && o.z > t.z && overlap(o, t)) return true; }
+    return false;
+  }
+  function genLevel(L) {
+    var land = stage.clientWidth > stage.clientHeight * 1.15;
+    C = land ? 8 : 6; R = land ? 5 : 7;
+    var sp = spec(L), T = sp.trip * 3;
+    var tiles = genPositions(T, sp.layers).map(function (p, i) { return { id: i, x: p.x, y: p.y, z: p.z, k: -1, gone: false }; });
+    // порядок, в котором стопку точно можно разобрать: по одной открытой правке
+    var order = [], sim = tiles.map(function (t) { return { ref: t, x: t.x, y: t.y, z: t.z, gone: false }; });
+    while (order.length < sim.length) {
+      var free = sim.filter(function (t) { return !t.gone && !coveredIn(sim, t); });
+      var pick = K.rand(free); pick.gone = true; order.push(pick.ref);
+    }
+    var kinds = K.shuffle(PR.map(function (_, i) { return i; })).slice(0, sp.types), trips = [];
+    for (var i = 0; i < sp.trip; i++) trips.push(i < kinds.length ? kinds[i] : K.rand(kinds));
+    K.shuffle(trips);
+    for (var j = 0; j < order.length; j++) order[j].k = trips[Math.floor(j / 3)];
+    return { level: L, C: C, R: R, tiles: tiles, tray: [], undo: 1, shuf: 1, last: null, done: 0 };
+  }
+
+  var S, busy = false;
+  var boardEl = document.getElementById('board'), trayEl = document.getElementById('tray'), capEl = document.getElementById('cap');
+  var undoBtn = document.getElementById('undo'), shufBtn = document.getElementById('shuf'), stage = document.getElementById('stage'), pv = document.getElementById('pv');
+  var tw = 60, th = 72, depth = 4, ox = 0, oy = 0;
+
+  function tileHTML(k, extra) {
+    var p = PR[k], s = SRC[p.s];
+    return '<span class="band">' + s.s + '</span><span class="w' + (p.w.length > 7 ? ' lg' : '') + '">' + p.w + '</span>';
+  }
+  function layout() {
+    var cs = getComputedStyle(stage);
+    var aw = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var ah = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    var sw = Math.floor(Math.min(64, (aw - 12 - 6 * 5) / 7));
+    var below = sw * 1.12 + 12 + 40 + 36 + 24;
+    C = S.C || 6; R = S.R || 7;
+    tw = Math.floor(Math.min(84, (aw - 16) / (C + 0.3), (ah - below - 16) / (R * 1.12 + 0.3)));
+    tw = Math.max(36, tw); th = Math.round(tw * 1.12); depth = Math.max(3, Math.round(tw * 0.06));
+    var bw = C * tw + 12, bh = R * th + 14;
+    boardEl.style.height = bh + 'px'; boardEl.style.width = bw + 'px'; boardEl.style.flex = 'none';
+    ox = 4 + depth * 2; oy = 4 + depth * 2;
+    pv.style.setProperty('--tw', tw + 'px'); pv.style.setProperty('--th', th + 'px'); pv.style.setProperty('--sw', sw + 'px');
+    pv.classList.toggle('sm', tw < 58);
+    renderBoard();
+  }
+  function renderBoard() {
+    var html = '';
+    S.tiles.forEach(function (t) {
+      if (t.gone) return;
+      var cov = coveredIn(S.tiles, t), p = PR[t.k];
+      var left = ox + t.x * tw - t.z * depth, top = oy + t.y * th - t.z * depth;
+      var zi = t.z * 1000 + Math.round(t.y * 2) * 20 + Math.round(t.x * 2);
+      html += '<button type="button" class="tile' + (cov ? ' cov' : '') + '" data-id="' + t.id + '" style="left:' + left + 'px;top:' + top + 'px;z-index:' + zi + ';--c:' + SRC[p.s].c + '"' +
+        (cov ? ' tabindex="-1" aria-disabled="true"' : '') + ' aria-label="' + SRC[p.s].n + ': ' + p.t + '" title="' + SRC[p.s].n + ': ' + p.t + '">' + tileHTML(t.k) + '</button>';
+    });
+    boardEl.innerHTML = html;
+  }
+  function renderTray(popIdx, hitKind) {
+    var html = '';
+    for (var i = 0; i < TRAY; i++) {
+      var k = S.tray[i];
+      var cls = 'slot' + (i === popIdx ? ' pop' : '') + (k != null && k === hitKind ? ' hit' : '');
+      html += '<div class="' + cls + '">' + (k != null ? '<div class="tile" style="--c:' + SRC[PR[k].s].c + '">' + tileHTML(k) + '</div>' : '') + '</div>';
+    }
+    trayEl.innerHTML = html;
+    trayEl.classList.toggle('warn', S.tray.length >= TRAY - 1);
+  }
+  function hud() {
+    var left = S.tiles.filter(function (t) { return !t.gone; }).length + S.tray.length;
+    K.stat('lvl', S.level); K.stat('left', left);
+    var b = K.best(KEY); K.stat('best', b == null ? '—' : b);
+    undoBtn.textContent = 'Отменить · ' + S.undo; shufBtn.textContent = 'Перемешать · ' + S.shuf;
+    undoBtn.disabled = !S.undo || !S.last; shufBtn.disabled = !S.shuf;
+  }
+  function save() { K.set(KEY + ':state', S); }
+  function setCap(k, prefix) { var p = PR[k]; capEl.innerHTML = (prefix || '') + '<b>' + SRC[p.s].n + ':</b> «' + p.t + '»'; }
+
+  function pick(id) {
+    if (busy || K.cardOpen()) return;
+    var t = S.tiles[id]; if (!t || t.gone || coveredIn(S.tiles, t)) return;
+    if (S.tray.length >= TRAY) return;
+    var trayBefore = S.tray.slice();
+    t.gone = true;
+    var pos = S.tray.lastIndexOf(t.k);
+    pos = pos >= 0 ? pos + 1 : S.tray.length;
+    S.tray.splice(pos, 0, t.k);
+    S.last = { id: id, tray: trayBefore };
+    setCap(t.k);
+    var n = S.tray.filter(function (k) { return k === t.k; }).length;
+    renderBoard();
+    if (n >= 3) {
+      busy = true; S.last = null;
+      renderTray(pos, t.k);
+      setTimeout(function () {
+        var c = 0;
+        S.tray = S.tray.filter(function (k) { if (k === t.k && c < 3) { c++; return false; } return true; });
+        S.done++;
+        setCap(t.k, 'Внесено. ');
+        busy = false; renderTray(); hud(); save(); check();
+      }, 260);
+    } else { renderTray(pos); hud(); save(); check(); }
+  }
+  function check() {
+    var boardLeft = S.tiles.some(function (t) { return !t.gone; });
+    if (!boardLeft && S.tray.length === 0) {
+      var cleared = S.level;
+      var r = K.record(KEY, cleared, 'пройдено созвонов: ' + cleared);
+      K.del(KEY + ':state');
+      K.card({ stamp: r.isNew ? 'Новый рекорд' : 'Созвон №' + S.level, title: 'Макет утверждён', text: K.rand(WIN),
+        nums: [['Пройдено созвонов', cleared], ['Рекорд', r.best]],
+        btns: [['Следующий созвон', function () { start(S.level + 1); }]] });
+      hud();
+      return;
+    }
+    if (S.tray.length >= TRAY) {
+      K.del(KEY + ':state');
+      K.card({ stamp: 'Созвон сорван', title: 'Лоток переполнен', text: K.rand(LOSE),
+        nums: [['Созвон', '№' + S.level], ['Внесено правок', S.done * 3]],
+        btns: [['Ещё раз', function () { start(S.level); }], ['С первого созвона', function () { start(1); }]] });
+    }
+  }
+  function start(L) { S = genLevel(L); busy = false; layout(); renderTray(); hud(); save(); capEl.textContent = 'Созвон №' + L + '. Нажмите на открытую правку, и она уйдёт в лоток.'; }
+
+  undoBtn.addEventListener('click', function () {
+    if (busy || !S.undo || !S.last) return;
+    var t = S.tiles[S.last.id]; t.gone = false; S.tray = S.last.tray; S.last = null; S.undo--;
+    capEl.textContent = 'Правку вернули на стол. Генеральный ничего не заметил.';
+    renderBoard(); renderTray(); hud(); save();
+  });
+  shufBtn.addEventListener('click', function () {
+    if (busy || !S.shuf) return;
+    var rest = S.tiles.filter(function (t) { return !t.gone; }), ks = K.shuffle(rest.map(function (t) { return t.k; }));
+    rest.forEach(function (t, i) { t.k = ks[i]; });
+    S.shuf--; S.last = null;
+    capEl.textContent = 'Правки перемешались. Как и в общем чате.';
+    renderBoard(); hud(); save();
+  });
+  boardEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.tile'); if (!b || b.classList.contains('cov')) return;
+    pick(+b.getAttribute('data-id'));
+  });
+  boardEl.addEventListener('mouseover', function (e) {
+    var b = e.target.closest('.tile'); if (!b || busy) return;
+    var t = S.tiles[+b.getAttribute('data-id')]; if (t) setCap(t.k, b.classList.contains('cov') ? 'Под другими: ' : '');
+  });
+
+  K.mount({ room: 'Комната 202 · Переговорка «Синергия»', game: 'Правки', stats: [['lvl', 'Созвон'], ['left', 'Осталось'], ['best', 'Рекорд']] });
+  K.action('Сначала', function () { if (confirm('Начать с первого созвона?')) { K.closeCard(); start(1); } });
+
+  var st = K.get(KEY + ':state', null);
+  if (st && Array.isArray(st.tiles) && Array.isArray(st.tray) && st.tiles.length && st.tray.length < TRAY && st.tiles.every(function (t) { return t.k >= 0 && t.k < PR.length; })) S = st;
+  else S = genLevel(1);
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
+  layout(); renderTray(); hud();
+  if (!K.get('seen:' + KEY, false)) {
+    K.card({ stamp: 'Переговорка «Синергия»', title: 'Правки', text: 'После созвона на макет навалились правки от всех сразу. Берите открытые правки в лоток. Три одинаковые вносятся разом и освобождают место. В лотке всего семь мест, и если он заполнится без тройки, созвон сорван.',
+      btns: [['Начать', function () { K.set('seen:' + KEY, true); }]] });
+  }
+  window.__g = { get S() { return S; }, pick: pick, start: start, covered: function (id) { return coveredIn(S.tiles, S.tiles[id]); } };
+})();
+</script>
+</body>
+</html>
