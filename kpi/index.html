@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Три KPI в ряд · Сделайте вирусно</title>
+<meta name="description" content="Три в ряд из маркетинговых показателей: закройте квартал, пока Палыч не поменял KPI.">
+<meta name="theme-color" content="#E62020">
+<link rel="icon" href="../kit/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.kp{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
+.goals{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;min-height:36px;align-items:center}
+.goal{display:flex;align-items:center;gap:7px;background:var(--cell);border-radius:99px;padding:5px 12px 5px 5px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;color:var(--panel-ink)}
+.goal i{font-style:normal;background:var(--c);color:#fff;border-radius:99px;padding:3px 9px;font-size:12px;letter-spacing:.02em}
+.goal.done{opacity:.55}
+.goal.done b::after{content:" ✓"}
+.goal.new{animation:gnew .9s ease-out 2}
+@keyframes gnew{50%{box-shadow:0 0 0 4px var(--red)}}
+.cap{font-size:13px;color:var(--muted);text-align:center;min-height:1.3em;margin:0}
+#cv{flex:none}
+</style>
+</head>
+<body>
+<div class="kit-wrap fill">
+  <header class="kit-top" id="kitTop"></header>
+  <div class="kit-stats" id="kitStats"></div>
+  <main class="kit-stage" id="stage">
+    <div class="kp" id="kp">
+      <div class="goals" id="goals" aria-live="polite"></div>
+      <canvas id="cv" aria-label="Поле показателей семь на семь"></canvas>
+      <p class="cap" id="cap">Поменяйте местами два соседних показателя, чтобы собрать три в ряд.</p>
+    </div>
+  </main>
+  <p class="kit-hint">Проведите по показателю в сторону соседа или нажмите на два соседних. Четыре в ряд дают премию: она сносит свою строку и столбец. <kbd>Esc</kbd> прячет игру.</p>
+</div>
+<script src="../kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+  var K = window.Kit;
+  var KEY = 'kpi', N = 7;
+  var KP = [
+    { n: 'CTR',  c: '#2F5BD3' },
+    { n: 'ER',   c: '#D6336C' },
+    { n: 'CPL',  c: '#1E9E62' },
+    { n: 'ROMI', c: '#D99A00' },
+    { n: 'NPS',  c: '#16A3B8' },
+    { n: 'ЛИДЫ', c: '#E62020' }
+  ];
+  var WIN = [
+    'Палыч: «Отлично. В следующем квартале план плюс тридцать процентов».',
+    'Палыч: «Хорошо. А почему продажи не выросли?»',
+    'Отчёт сдан. Палыч прочитал первый слайд и сказал «нормально».'
+  ];
+  var LOSE = [
+    'Палыч: «KPI были амбициозные, но реалистичные».',
+    'Палыч: «Премии не будет, но вы держитесь».',
+    'Палыч: «Жду от вас план улучшений. На двадцать слайдов»'
+  ];
+  var CASCADE = ['Само выросло, никто не понял почему', 'Органика пошла', 'Алгоритмы вас заметили', 'Сарафанное радио работает'];
+  function spec(L) {
+    var q = ((L - 1) % 4) + 1, yr = Math.floor((L - 1) / 4) + 1, ng = L <= 2 ? 2 : 3;
+    var target = ng === 2 ? 12 + 3 * L : 8 + 2 * L;
+    return { q: q, yr: yr, ng: ng, moves: 20 + Math.min(5, Math.floor(L / 2)), target: Math.min(target, 32), twist: q === 3 };
+  }
+  function qname(L) { var s = spec(L); return 'Q' + s.q + ' · год ' + s.yr; }
+
+  var S, grid = [], uid = 0, fast = false;
+  function tile(k) { return { k: k, b: false, id: ++uid, sx: 0, sy: 0, dying: false, pop: 0 }; }
+  function randK(i, g) {
+    var x = i % N, y = (i / N) | 0, ks = [];
+    for (var k = 0; k < KP.length; k++) {
+      if (x >= 2 && g[i - 1] && g[i - 2] && g[i - 1].k === k && g[i - 2].k === k) continue;
+      if (y >= 2 && g[i - N] && g[i - 2 * N] && g[i - N].k === k && g[i - 2 * N].k === k) continue;
+      ks.push(k);
+    }
+    return K.rand(ks);
+  }
+  function fillBoard() {
+    for (var a = 0; a < 50; a++) {
+      var g = [];
+      for (var i = 0; i < N * N; i++) g[i] = tile(randK(i, g));
+      grid = g;
+      if (findRuns().length === 0 && validSwaps().length > 0) return;
+    }
+  }
+  function findRuns() {
+    var runs = [], x, y, s, k;
+    for (y = 0; y < N; y++) {
+      s = 0;
+      for (x = 1; x <= N; x++) {
+        var a = grid[y * N + s], b = x < N ? grid[y * N + x] : null;
+        if (b && a && b.k === a.k) continue;
+        if (x - s >= 3 && a) { var c = []; for (k = s; k < x; k++) c.push(y * N + k); runs.push({ cells: c }); }
+        s = x;
+      }
+    }
+    for (x = 0; x < N; x++) {
+      s = 0;
+      for (y = 1; y <= N; y++) {
+        var a2 = grid[s * N + x], b2 = y < N ? grid[y * N + x] : null;
+        if (b2 && a2 && b2.k === a2.k) continue;
+        if (y - s >= 3 && a2) { var c2 = []; for (k = s; k < y; k++) c2.push(k * N + x); runs.push({ cells: c2 }); }
+        s = y;
+      }
+    }
+    return runs;
+  }
+  function validSwaps() {
+    var out = [];
+    for (var i = 0; i < N * N; i++) {
+      [i + 1, i + N].forEach(function (j) {
+        if (j >= N * N || (j === i + 1 && i % N === N - 1)) return;
+        var t = grid[i]; grid[i] = grid[j]; grid[j] = t;
+        var r = findRuns();
+        if (r.length) out.push({ a: i, b: j, kinds: r.map(function (q) { return grid[q.cells[0]].k; }) });
+        t = grid[i]; grid[i] = grid[j]; grid[j] = t;
+      });
+    }
+    return out;
+  }
+
+  // фазы анимации
+  var phase = 'idle', pt0 = 0, pdur = 0, onEnd = null, combo = 0;
+  function setPhase(name, dur, end) {
+    if (fast || K.reduced && name !== 'idle') { phase = name; end(); return; }
+    phase = name; pt0 = performance.now(); pdur = dur; onEnd = end; dirty = true;
+  }
+  function trySwap(a, b) {
+    if (phase !== 'idle' || S.over || K.cardOpen()) return;
+    if (b < 0 || b >= N * N || (Math.abs(a - b) === 1 && ((a / N) | 0) !== ((b / N) | 0))) return;
+    var ax = a % N, ay = (a / N) | 0, bx = b % N, by = (b / N) | 0;
+    var t = grid[a]; grid[a] = grid[b]; grid[b] = t;
+    grid[a].sx = bx - ax; grid[a].sy = by - ay; grid[b].sx = ax - bx; grid[b].sy = ay - by;
+    setPhase('swap', 130, function () {
+      zero();
+      var runs = findRuns();
+      if (!runs.length) {
+        var t2 = grid[a]; grid[a] = grid[b]; grid[b] = t2;
+        grid[a].sx = bx - ax; grid[a].sy = by - ay; grid[b].sx = ax - bx; grid[b].sy = ay - by;
+        setPhase('back', 130, function () { zero(); phase = 'idle'; dirty = true; });
+        return;
+      }
+      S.moves--; S.used++; combo = 0;
+      resolve(runs, [a, b]);
+    });
+  }
+  function zero() { grid.forEach(function (t) { if (t) { t.sx = 0; t.sy = 0; } }); }
+  function resolve(runs, swapIdx) {
+    var clear = {}, bonusAt = {};
+    runs.forEach(function (r) {
+      if (r.cells.length >= 4) {
+        var pos = null;
+        if (swapIdx) for (var i = 0; i < r.cells.length; i++) if (swapIdx.indexOf(r.cells[i]) >= 0) { pos = r.cells[i]; break; }
+        if (pos == null) pos = r.cells[Math.floor(r.cells.length / 2)];
+        bonusAt[pos] = 1;
+      }
+      r.cells.forEach(function (c) { clear[c] = 1; });
+    });
+    Object.keys(bonusAt).forEach(function (c) { delete clear[c]; });
+    var queue = Object.keys(clear).map(Number), seen = {}, boom = 0;
+    while (queue.length) {
+      var c = queue.pop(); if (seen[c]) continue; seen[c] = 1;
+      var t = grid[c];
+      if (t && t.b) {
+        boom++;
+        var x = c % N, y = (c / N) | 0;
+        for (var i = 0; i < N; i++) [y * N + i, i * N + x].forEach(function (cc) { if (!clear[cc] && !bonusAt[cc]) { clear[cc] = 1; queue.push(cc); } });
+      }
+    }
+    Object.keys(bonusAt).forEach(function (c) { grid[c].b = true; grid[c].pop = 1; });
+    var got = {};
+    Object.keys(clear).forEach(function (c) { var t = grid[c]; if (t) { t.dying = true; got[t.k] = (got[t.k] || 0) + 1; } });
+    S.goals.forEach(function (g) { if (got[g.k]) g.have = Math.min(g.need, g.have + got[g.k]); });
+    if (boom) K.toast('Премия сработала: снесло ' + Object.keys(clear).length + ' показателей');
+    if (combo === 2) K.toast('Каскад: ' + K.rand(CASCADE));
+    renderGoals();
+    setPhase('clear', 170, function () {
+      Object.keys(clear).forEach(function (c) { grid[c] = null; });
+      var md = gravity();
+      setPhase('fall', 90 + 55 * md, function () {
+        zero();
+        var r2 = findRuns();
+        if (r2.length) { combo++; resolve(r2, null); } else settle();
+      });
+    });
+  }
+  function gravity() {
+    var maxD = 0;
+    for (var x = 0; x < N; x++) {
+      var w = N - 1;
+      for (var y = N - 1; y >= 0; y--) {
+        var t = grid[y * N + x];
+        if (t) { if (y !== w) { grid[w * N + x] = t; grid[y * N + x] = null; t.sy = -(w - y); maxD = Math.max(maxD, w - y); } w--; }
+      }
+      var miss = w + 1;
+      for (var y2 = w; y2 >= 0; y2--) { var nt = tile(Math.floor(Math.random() * KP.length)); nt.sy = -miss; grid[y2 * N + x] = nt; maxD = Math.max(maxD, miss); }
+    }
+    return maxD;
+  }
+  function settle() {
+    phase = 'idle'; dirty = true;
+    var sp = spec(S.level);
+    if (S.goals.every(function (g) { return g.have >= g.need; })) { win(); return; }
+    if (S.moves <= 0) { lose(); return; }
+    if (sp.twist && !S.twisted && S.used >= Math.floor(sp.moves / 2)) twist();
+    if (!validSwaps().length) {
+      K.toast('Рынок поменялся. Перемешиваем показатели');
+      fillBoard();
+    }
+    hud(); save();
+  }
+  function twist() {
+    S.twisted = true;
+    var open = S.goals.filter(function (g) { return g.have < g.need; });
+    if (!open.length) return;
+    var g = K.rand(open), used = S.goals.map(function (q) { return q.k; });
+    var free = KP.map(function (_, i) { return i; }).filter(function (i) { return used.indexOf(i) < 0; });
+    var nk = K.rand(free), old = g.k;
+    g.k = nk; g.have = 0; g.need = Math.max(6, Math.ceil(g.need * 0.7)); g.fresh = true;
+    K.toast('Палыч поменял KPI: теперь важен не ' + KP[old].n + ', а ' + KP[nk].n, 4200);
+    capEl.textContent = 'Палыч вернулся со стратсессии. ' + KP[old].n + ' больше никого не интересует.';
+    renderGoals();
+  }
+  function win() {
+    S.over = true;
+    var r = K.record(KEY, S.level, 'закрыто кварталов: ' + S.level);
+    K.del(KEY + ':state');
+    K.card({ stamp: r.isNew ? 'Новый рекорд' : 'Квартал закрыт', title: qname(S.level) + ' закрыт', text: K.rand(WIN),
+      nums: [['Ходов в запасе', S.moves], ['Закрыто кварталов', S.level], ['Рекорд', r.best]],
+      btns: [['Следующий квартал', function () { start(S.level + 1); }]] });
+    hud();
+  }
+  function lose() {
+    S.over = true;
+    K.del(KEY + ':state');
+    K.card({ stamp: 'Квартал провален', title: 'KPI не выполнены', text: K.rand(LOSE),
+      nums: S.goals.map(function (g) { return [KP[g.k].n, g.have + ' из ' + g.need]; }),
+      btns: [['Переиграть квартал', function () { start(S.level); }], ['С первого квартала', function () { start(1); }]] });
+  }
+  function start(L) {
+    var sp = spec(L), ks = K.shuffle(KP.map(function (_, i) { return i; })).slice(0, sp.ng);
+    S = { level: L, moves: sp.moves, used: 0, twisted: false, over: false, goals: ks.map(function (k) { return { k: k, need: sp.target, have: 0 }; }) };
+    fillBoard(); phase = 'idle'; sel = -1;
+    capEl.textContent = sp.twist ? qname(L) + '. Палыч уехал на стратегическую сессию. Это не к добру.' : qname(L) + '. Соберите показатели по плану.';
+    renderGoals(); hud(); save(); dirty = true;
+  }
+  function save() { if (S.over) return; K.set(KEY + ':state', { S: S, g: grid.map(function (t) { return t ? [t.k, t.b ? 1 : 0] : null; }) }); }
+  function load() {
+    var st = K.get(KEY + ':state', null);
+    if (st && st.S && Array.isArray(st.g) && st.g.length === N * N && st.g.every(function (q) { return q && q[0] >= 0 && q[0] < KP.length; })) {
+      S = st.S; grid = st.g.map(function (q) { var t = tile(q[0]); t.b = !!q[1]; return t; });
+      if (findRuns().length || !validSwaps().length) fillBoard();
+      renderGoals(); hud(); dirty = true; capEl.textContent = qname(S.level) + '. Продолжаем квартал.';
+      return;
+    }
+    start(1);
+  }
+  var goalsEl = document.getElementById('goals'), capEl = document.getElementById('cap');
+  function renderGoals() {
+    goalsEl.innerHTML = S.goals.map(function (g) {
+      return '<span class="goal' + (g.have >= g.need ? ' done' : '') + (g.fresh ? ' new' : '') + '" style="--c:' + KP[g.k].c + '"><i>' + KP[g.k].n + '</i><b>' + g.have + '/' + g.need + '</b></span>';
+    }).join('');
+    S.goals.forEach(function (g) { g.fresh = false; });
+  }
+  function hud() {
+    K.stat('q', 'Q' + spec(S.level).q + ' · ' + spec(S.level).yr + '-й год');
+    K.stat('moves', S.moves);
+    var b = K.best(KEY); K.stat('best', b == null ? '—' : b);
+  }
+
+  // отрисовка
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage');
+  var dpr = 1, cs = 50, W = 0, dirty = true, tok = {}, sel = -1;
+  function readTok() { tok = { cell: K.tok('cell'), red: K.tok('red'), ink: K.tok('panel-ink') }; dirty = true; }
+  function layout() {
+    var st = getComputedStyle(stage);
+    var aw = stage.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+    var ah = stage.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom) - 46 - 34;
+    cs = Math.max(34, Math.floor(Math.min(aw, ah, 560) / N));
+    W = cs * N; dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(W * dpr); cv.style.width = W + 'px'; cv.style.height = W + 'px';
+    dirty = true;
+  }
+  function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+  function ease(p) { return 1 - Math.pow(1 - p, 3); }
+  function star(cx, cy, r) {
+    ctx.beginPath();
+    for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r; ctx.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); }
+    ctx.closePath(); ctx.fill();
+  }
+  function drawTile(t, px, py, s) {
+    var g = s * 0.07, c = KP[t.k].c;
+    ctx.fillStyle = c; rr(px + g, py + g, s - 2 * g, s - 2 * g, s * 0.22); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(px + g, py + g, s - 2 * g, (s - 2 * g) * 0.45, s * 0.22); ctx.fill();
+    if (t.b) {
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2, s * 0.06); rr(px + g * 2.4, py + g * 2.4, s - 4.8 * g, s - 4.8 * g, s * 0.16); ctx.stroke();
+      ctx.fillStyle = '#FFE066'; star(px + s - g * 3.6, py + g * 3.6, s * 0.12);
+    }
+    var lbl = KP[t.k].n;
+    ctx.fillStyle = '#fff'; ctx.font = '800 ' + Math.round(s * (lbl.length > 3 ? 0.24 : 0.3)) + 'px ' + K.FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, px + s / 2, py + s / 2 + s * 0.02);
+  }
+  function draw(now) {
+    var p = phase === 'idle' ? 1 : Math.min(1, (now - pt0) / pdur), e = ease(p);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, W);
+    for (var i = 0; i < N * N; i++) { ctx.fillStyle = tok.cell; rr((i % N) * cs + 1.5, ((i / N) | 0) * cs + 1.5, cs - 3, cs - 3, cs * 0.18); ctx.fill(); }
+    if (sel >= 0) { ctx.strokeStyle = tok.red; ctx.lineWidth = 3; rr((sel % N) * cs + 2, ((sel / N) | 0) * cs + 2, cs - 4, cs - 4, cs * 0.2); ctx.stroke(); }
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, W); ctx.clip();
+    for (i = 0; i < N * N; i++) {
+      var t = grid[i]; if (!t) continue;
+      var x = (i % N) + t.sx * (1 - e), y = ((i / N) | 0) + t.sy * (1 - e), s = cs;
+      if (t.dying && phase === 'clear') s = cs * (1 - e);
+      if (t.pop) { s = cs * (1 + 0.15 * Math.sin(Math.min(1, t.pop) * Math.PI)); t.pop += 0.08; if (t.pop > 1) t.pop = 0; dirty = true; }
+      if (s <= 1) continue;
+      drawTile(t, x * cs + (cs - s) / 2, y * cs + (cs - s) / 2, s);
+    }
+    ctx.restore();
+  }
+  function loop(now) {
+    if (phase !== 'idle' && now - pt0 >= pdur) { var f = onEnd; onEnd = null; phase = 'idle'; if (f) f(); }
+    if (dirty || phase !== 'idle') { draw(now); dirty = false; }
+    requestAnimationFrame(loop);
+  }
+
+  // ввод
+  var down = null;
+  function cellAt(e) { var r = cv.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) / cs), y = Math.floor((e.clientY - r.top) / cs); return x >= 0 && y >= 0 && x < N && y < N ? y * N + x : -1; }
+  cv.addEventListener('pointerdown', function (e) {
+    if (phase !== 'idle' || S.over || K.cardOpen()) return;
+    var c = cellAt(e); if (c < 0) return;
+    down = { c: c, x: e.clientX, y: e.clientY, moved: false };
+    try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!down || down.moved) return;
+    var dx = e.clientX - down.x, dy = e.clientY - down.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < cs * 0.35) return;
+    down.moved = true; sel = -1;
+    var c = down.c, x = c % N;
+    var n = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? (x < N - 1 ? c + 1 : -1) : (x > 0 ? c - 1 : -1)) : (dy > 0 ? c + N : c - N);
+    if (n >= 0 && n < N * N) trySwap(c, n);
+  });
+  cv.addEventListener('pointerup', function () {
+    if (down && !down.moved) {
+      var c = down.c, adj = sel >= 0 && ((Math.abs(sel - c) === 1 && ((sel / N) | 0) === ((c / N) | 0)) || Math.abs(sel - c) === N);
+      if (adj) { var a = sel; sel = -1; trySwap(a, c); } else sel = sel === c ? -1 : c;
+      dirty = true;
+    }
+    down = null;
+  });
+  cv.addEventListener('pointercancel', function () { down = null; });
+
+  K.mount({ room: 'Комната 203 · Ситуационный центр', game: 'Три KPI в ряд', stats: [['q', 'Квартал'], ['moves', 'Ходов'], ['best', 'Рекорд']] });
+  K.action('Сначала', function () { if (confirm('Начать с первого квартала?')) { K.closeCard(); start(1); } });
+  K.onPause = function () { down = null; };
+  K.onTheme(readTok); readTok();
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage); else window.addEventListener('resize', layout);
+  layout(); load();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { dirty = true; });
+  requestAnimationFrame(loop);
+  if (!K.get('seen:' + KEY, false)) {
+    K.card({ stamp: 'Ситуационный центр', title: 'Три KPI в ряд', text: 'Квартал начался, план утверждён. Меняйте местами соседние показатели и собирайте по три одинаковых в ряд. Выполните KPI до конца ходов. В третьем квартале Палыч уезжает на стратегическую сессию, и KPI могут поменяться.',
+      btns: [['Начать квартал', function () { K.set('seen:' + KEY, true); }]] });
+  }
+  window.__g = { get S() { return S; }, get grid() { return grid; }, start: start, swap: trySwap, validSwaps: validSwaps, findRuns: findRuns, setFast: function (v) { fast = v; }, get phase() { return phase; } };
+})();
+</script>
+</body>
+</html>
