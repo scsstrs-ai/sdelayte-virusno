@@ -10,6 +10,7 @@
   K.best = function (k) { return K.get('best:' + k, null); };
   // lowerIsBetter для времени; label попадает на дверь комнаты на этаже
   K.record = function (k, v, label, lowerIsBetter) {
+    K.set('last:' + k, { v: v, t: Date.now() }); // последний результат: его читают задания во дворе
     var b = K.best(k);
     var isNew = b == null || (lowerIsBetter ? v < b : v > b);
     if (isNew) { K.set('best:' + k, v); if (label) K.set('label:' + k, label); }

@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
 <link rel="stylesheet" href="../kit/kit.css">
+<link rel="stylesheet" href="../kvest/kvest.css">
 <style>
 .kit-stage.iso{padding:0;background:#5E9B49;display:block}
 .kit-stage.iso canvas{position:absolute;inset:0;touch-action:manipulation}
@@ -25,29 +26,21 @@
   <header class="kit-top" id="kitTop"></header>
   <div class="kit-stats" id="kitStats"></div>
   <main class="kit-stage iso" id="stage"><canvas id="cv" aria-label="Двор офиса: зона отдыха с играми"></canvas><button type="button" class="act" id="act" hidden></button></main>
-  <p class="kit-hint">Нажмите на место во дворе, и герой дойдёт сам. Или идите стрелками и нажмите <kbd>E</kbd> рядом с игрой. Коллег можно послушать. <kbd>Esc</kbd> прячет всё.</p>
+  <p class="kit-hint">Нажмите на место во дворе, и герой дойдёт сам. Или идите стрелками и нажмите <kbd>E</kbd> рядом с игрой. Коллеги со знаком «!» дают задания. <kbd>Esc</kbd> прячет всё.</p>
 </div>
 <script src="../kit/kit.js"></script>
 <script src="../kit/iso.js"></script>
+<script src="../kvest/furniture.js"></script>
+<script src="../kvest/engine.js"></script>
+<script src="../kvest/sides.js"></script>
+<script src="../kvest/q/dvor.js"></script>
 <script>
 (function () {
   'use strict';
   var K = window.Kit, shade = Iso.shade, hash = Iso.hash;
-  var stage = document.getElementById('stage'), cv = document.getElementById('cv'), actBtn = document.getElementById('act');
+  window.KVOffice = window.KVOffice || {};
+  window.KVOffice.dvor = function (W) {
   var COLS = 24, ROWS = 20;
-  var READY = { 'kontent-plan': 1, pravki: 1, kpi: 1, soglasovanie: 1, kommentarii: 1, voronka: 1 };
-
-  var W = new Iso.World({
-    canvas: cv, stage: stage, cols: COLS, rows: ROWS, ext: 3, top: 215, start: [12.5, 4.4], minZoom: (window.innerWidth > 700 ? 0.5 : 0.62), maxZoom: 1.05, bg: '#5E9B49', font: K.FONT,
-    look: { shirt: '#E62020', pants: '#2B2F3A', skin: '#F2C7A5', hair: '#3B2A20', style: 'short', acc: 'badge' },
-    blocked: function () { return K.cardOpen() || K.bossOn(); },
-    onNear: function (s) {
-      if (!s) { actBtn.hidden = true; return; }
-      actBtn.hidden = false;
-      actBtn.innerHTML = '<kbd>E</kbd>' + (s.id === 'office' ? 'Войти в офис' : 'Играть: ' + s.game);
-    },
-    onSpot: useSpot
-  });
 
   // ——— земля ———
   var GAZ = { x0: 2, y0: 5, x1: 7, y1: 9 }, VER = { x0: 15, y0: 4, x1: 21, y1: 8 }, COURT = { x0: 18, y0: 10, x1: 22, y1: 17 };
@@ -409,31 +402,31 @@
   for (var hx = 1; hx < COLS - 1; hx++) hedge(hx, ROWS - 1);
 
   // ——— коллеги ———
-  W.npcs = [
-    { name: 'Ира, SMM', x: 4.75, y: 6.3, pose: 'sit', dk: 0.01, face: 1, flip: 1,
+  var npcList = [
+    { id: 'ira', name: 'Ира', role: 'SMM', ax: 6.5, ay: 6.5, x: 4.75, y: 6.3, pose: 'sit', dk: 0.01, face: 1, flip: 1,
       look: { shirt: '#8E44D8', pants: '#3A3F55', skin: '#F5D0B5', hair: '#C0612B', style: 'bob', acc: 'glasses', seed: 1 },
       lines: ['Борис опять сказал «сделайте вирусно, ну вы поняли». Я не поняла', 'Выложила сторис. Смотрели трое, один из них Борис', 'Контент-план на ноябрь готов. Править начнут завтра'] },
-    { name: 'Дима, таргетолог', x: 19.05, y: 5.6, pose: 'sit', dk: 0.01, face: 1, flip: 1, phone: true,
+    { id: 'dima', name: 'Дима', role: 'таргетолог', x: 19.05, y: 5.6, pose: 'sit', dk: 0.01, face: 1, flip: 1, phone: true,
       look: { shirt: '#2F5BD3', pants: '#2B2F3A', skin: '#E8B894', hair: '#1E1A18', style: 'cap', seed: 2 },
       lines: ['«Небольшая корректировка», говорят. Это редизайн, если что', 'Сказали поднять ROMI и срезать бюджет. Одновременно', 'До Чёрной пятницы шестнадцать дней, а кабинет всё ещё на модерации'] },
-    { name: 'Света, дизайнер', x: 20.1, y: 5.65, pose: 'sit', dk: 0.01, face: 1, flip: -1,
+    { id: 'sveta', name: 'Света', role: 'дизайнер', x: 20.1, y: 5.65, pose: 'sit', dk: 0.01, face: 1, flip: -1,
       look: { shirt: '#F2B705', pants: '#5B6B80', skin: '#F6D7C3', hair: '#E8C36A', style: 'long', seed: 3 },
       lines: ['Можно увеличить логотип? Можно. Только зачем', 'Нейросеть нарисовала корову с пятью ногами. Клиенту понравилось', 'Шрифт «посолиднее» это какой?'] },
-    { name: 'Олег, продажи', x: 15.2, y: 18.55, pose: 'stand', face: -1, flip: 1,
+    { id: 'oleg', name: 'Олег', role: 'продажи', x: 15.2, y: 18.55, pose: 'stand', face: -1, flip: 1,
       look: { shirt: '#FFFFFF', pants: '#1F2937', skin: '#EBC2A0', hair: '#6B4A32', style: 'short', acc: 'tie', seed: 4 },
       lines: ['Лиды нецелевые. Все. Всегда', 'Мне один раф и сто заявок к пятнице', 'Маркетинг тратит, продажи зарабатывают. Шучу. Наверное'] },
-    { name: 'Тамара Ивановна', x: 17.5, y: 17.9, pose: 'sit', dk: 0.01, face: 1, flip: 1, cup: true,
+    { id: 'tamara', name: 'Тамара Ивановна', role: 'бухгалтер', x: 17.5, y: 17.9, pose: 'sit', dk: 0.01, face: 1, flip: 1, cup: true,
       look: { shirt: '#B83A6B', pants: '#3B2F3F', skin: '#F3CDB4', hair: '#B9A27E', style: 'bun', acc: 'glasses', seed: 5 },
       lines: ['Закрывающие документы сами себя не закроют', 'Чай без сахара. И без правок, пожалуйста', 'Акт за октябрь где? На дворе ноябрь'] },
-    { name: 'Лёша, контент', x: 7.7, y: 14.5, pose: 'stand', face: 1, flip: 1, orbit: { cx: 5, cy: 14.5, rx: 2.78, ry: 2.6, sp: 0.32 },
+    { id: 'lesha', name: 'Лёша', role: 'контент', x: 7.7, y: 14.5, pose: 'stand', face: 1, flip: 1, orbit: { cx: 5, cy: 14.5, rx: 2.78, ry: 2.6, sp: 0.32 },
       look: { shirt: '#1E9E62', pants: '#33363D', skin: '#F0C8A8', hair: '#2A211C', style: 'curly', acc: 'phones', seed: 6 },
       lines: ['Хожу кругами, как наше согласование', 'Шаги считаю. Единственный KPI, который растёт', 'Юрист попросил убрать слово «лучший». Даже из моего резюме'] },
-    { name: 'Тёма, стажёр', x: 2.7, y: 18, z: 4, pose: 'hidden',
+    { id: 'tema', name: 'Тёма', role: 'стажёр', x: 2.7, y: 18, z: 4, pose: 'hidden', look: { shirt: '#5B8DEF', pants: '#33363D', skin: '#F1C9A5', hair: '#5B3A29', style: 'short', seed: 7 },
       lines: ['Zzz… дедлайн… zzz', 'Я не сплю, я думаю над концепцией', 'Ещё пять минут, и я стажёр месяца'] }
   ];
 
   // ——— места с играми ———
-  W.spots = [
+  var spotList = [
     { id: 'office', place: 'Офис', game: 'Вернуться к работе', x: 12.5, y: 3.6, tx: 12.5, ty: 3, tz: 158, hx: 12.5, hy: 2.3, hr: 1.3, seed: 0.1 },
     { id: 'kontent-plan', place: 'Беседка', game: 'Контент-план', x: 7.35, y: 7.2, tx: 5, ty: 7, tz: 122, hx: 5, hy: 7, hr: 1.9, seed: 0.3, href: '../kontent-plan/',
       text: 'Раскладываете рилс, сторис, карусели и эфиры по таблице недели Чёрной пятницы. Заполненная рубрика или день уходят в публикацию.' },
@@ -448,50 +441,26 @@
     { id: 'voronka', place: 'Кофейня «Воронка»', game: 'Воронка', x: 14.5, y: 18.6, tx: 14.5, ty: 17, tz: 104, hx: 14.5, hy: 17, hr: 1.6, seed: 0.4, href: '../voronka/',
       text: 'Бросаете показы в воронку продаж. Два одинаковых шага сливаются в следующий, и так до клиента на годы.' }
   ];
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); }
-  function refreshBadges() {
-    var n = 0;
-    W.spots.forEach(function (s) {
-      if (!s.href) return;
-      s.soon = !READY[s.id];
-      var lab = K.get('label:' + s.id, null);
-      if (lab) n++;
-      s.badge = s.soon ? 'скоро' : lab ? '★' : null;
-    });
-    K.stat('done', n + ' из 6');
-  }
-  function useSpot(s) {
-    if (!s || K.cardOpen()) return;
-    W.keys = {};
-    if (s.id === 'office') {
-      K.card({ stamp: 'Офис', title: 'Вернуться к работе?', text: 'Борис уже дважды спрашивал в чате, где вы. Квест про вирусный ролик ждёт.',
-        btns: [['Вернуться в офис', function () { location.href = '../'; }], ['Ещё пять минут']] });
-      return;
-    }
-    if (s.soon) { K.card({ stamp: s.place, title: s.game, text: 'Здесь ещё расставляют мебель. Загляните чуть позже.', btns: [['Понятно']] }); return; }
-    var lab = K.get('label:' + s.id, null);
-    K.card({ stamp: s.place, title: s.game, text: s.text + (lab ? '<br><br>Ваш рекорд: <b>' + esc(lab) + '</b>' : ''),
-      btns: [['Играть', function () { location.href = s.href; }], ['Не сейчас']] });
-  }
-  actBtn.addEventListener('click', function () { useSpot(W.near); });
-
-  // ——— шапка, время суток ———
-  K.mount({ room: 'Двор офиса', game: 'Зона отдыха', back: { href: '../', label: 'В офис' }, stats: [['clock', 'Время', '—'], ['done', 'Рекорды', '—']] });
-  function clock() { var d = new Date(); K.stat('clock', d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0')); }
+  var npcs = {}, spots = {};
+  npcList.forEach(function (n) { npcs[n.id] = n; });
+  spotList.forEach(function (sp) { spots[sp.id] = sp; });
   var hr = new Date().getHours();
   W.night = K.get('dvor:night', null) != null ? K.get('dvor:night', false) : (hr >= 19 || hr < 7);
-  var nightBtn = K.action(W.night ? 'Сделать день' : 'Сделать вечер', function () {
-    W.night = !W.night; K.set('dvor:night', W.night); nightBtn.textContent = W.night ? 'Сделать день' : 'Сделать вечер';
-  });
-  K.onPause = function () { W.keys = {}; };
-  clock(); setInterval(clock, 30000);
-  refreshBadges();
-  W.resize();
-  if (window.ResizeObserver) new ResizeObserver(function () { W.resize(); }).observe(stage); else window.addEventListener('resize', function () { W.resize(); });
-  W.bind(); W.start();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { W.t += 0; });
-  setTimeout(function () { W.talk(W.npcs[0]); }, 1200);
-  window.__w = W;
+  return { npcs: npcs, spots: spots, start: [12.5, 4.4], bg: '#5E9B49', lights: [], defaults: {},
+    look: { shirt: '#E62020', pants: '#2B2F3A', skin: '#F2C7A5', hair: '#3B2A20', style: 'short', acc: 'badge' } };
+  };
+
+  // часы, рекорды и вечер в шапке двора
+  KV.sides.dvor.extra = function (W, office) {
+    function clock() { var d = new Date(); K.stat('clock', d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0')); }
+    var n = 0;
+    Object.keys(office.spots).forEach(function (id) { var sp = office.spots[id]; if (!sp.href) return; var lab = K.get('label:' + sp.id, null); if (lab) n++; sp.badge = lab ? '★' : null; });
+    K.stat('done', n + ' из 6');
+    var nightBtn = K.action(W.night ? 'Сделать день' : 'Сделать вечер', function () { W.night = !W.night; K.set('dvor:night', W.night); nightBtn.textContent = W.night ? 'Сделать день' : 'Сделать вечер'; });
+    clock(); setInterval(clock, 30000);
+    window.__w = W;
+  };
+  KV.boot({ side: 'dvor' });
 })();
 </script>
 </body>

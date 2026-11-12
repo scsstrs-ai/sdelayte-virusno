@@ -405,7 +405,7 @@
         return;
       }
       if (!s.game) { s.rect = null; return; }
-      var a = W.iso(s.tx, s.ty, s.tz), sc = W.toScreen(a[0], a[1]), hot = s === W.near || s === W.hoverSpot;
+      var a = W.iso(s.tx, s.ty, s.tz), sc = W.toScreen(a[0], a[1]), hot = s === W.near || s === W.hoverSpot || !!s.mark;
       c.font = '700 10px ' + FONT; var w1 = c.measureText(s.place.toUpperCase()).width;
       c.font = '800 13px ' + FONT; var w2 = c.measureText(s.game).width;
       var w = Math.max(w1, w2) + 22, h = 38, x = sc[0] - w / 2, y = sc[1] - h - 8 + Math.sin(W.t * 2 + (s.seed || 0) * 6) * 1.5;
@@ -420,8 +420,8 @@
     });
     // маркеры заданий над людьми
     W.npcs.forEach(function (n) {
-      if (!n.mark || n.pose === "hidden") return;
-      var a = W.lift(n, n.pose === "sit" ? 62 : 72), sc = W.toScreen(a[0], a[1]), by = sc[1] - 10 + Math.sin(W.t * 3 + (n.look && n.look.seed || 0)) * 3;
+      if (!n.mark) return;
+      var a = W.lift(n, n.pose === "sit" ? 62 : n.pose === "hidden" ? 44 : 72), sc = W.toScreen(a[0], a[1]), by = sc[1] - 10 + Math.sin(W.t * 3 + (n.look && n.look.seed || 0)) * 3;
       c.fillStyle = "rgba(0,0,0,.25)"; c.beginPath(); c.arc(sc[0] + 1, by + 2, 11, 0, 7); c.fill();
       c.fillStyle = n.mark === "!" ? "#FFD447" : "#FFFFFF"; c.beginPath(); c.arc(sc[0], by, 11, 0, 7); c.fill();
       c.strokeStyle = "#E62020"; c.lineWidth = 2.5; c.stroke();

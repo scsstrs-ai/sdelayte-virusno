@@ -16,21 +16,24 @@
   function initials(n) { return String(n).split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase(); }
   function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 
-  KV.boot = function () {
-    var qs = new URLSearchParams(location.search), side = KV.sides[qs.get('side') || 'client'];
+  KV.boot = function (opts) {
+    opts = opts || {};
+    var qs = new URLSearchParams(location.search), side = KV.sides[opts.side || qs.get('side') || 'client'];
     if (!side || !window.KVOffice[side.office]) { location.href = '../'; return; }
-    var qid = qs.get('q'), Q = qid && KV.quests[qid] && KV.quests[qid].side === side.id ? KV.quests[qid] : null;
+    var qid = qs.get('q');
+    if (!qid && side.free) { var act = K.get('kv:active:' + side.id, null); if (act && K.get('kv:run:' + side.id + ':' + act, null)) qid = act; }
+    var Q = qid && KV.quests[qid] && KV.quests[qid].side === side.id ? KV.quests[qid] : null;
     var prog = K.get('kv:prog:' + side.id, { done: {}, grade: 1 });
     var stage = document.getElementById('stage'), cv = document.getElementById('cv'), actBtn = document.getElementById('act');
 
     var W = new Iso.World({
-      canvas: cv, stage: stage, cols: side.cols, rows: side.rows, ext: 0, top: 110, start: [1, 1], flat: true, ts: 48, zk: 0.75,
-      minZoom: (window.innerWidth > 700 ? 0.92 : 0.62), maxZoom: 1.2, font: K.FONT,
+      canvas: cv, stage: stage, cols: side.cols, rows: side.rows, ext: side.ext || 0, top: side.top || 110, start: [1, 1], flat: side.flat !== false, ts: 48, zk: 0.75,
+      minZoom: side.zoom ? (window.innerWidth > 700 ? side.zoom[0] : side.zoom[1]) : (window.innerWidth > 700 ? 0.92 : 0.62), maxZoom: side.zoom ? side.zoom[2] : 1.2, font: K.FONT,
       blocked: function () { return dlgOpen || K.cardOpen() || K.bossOn(); },
       onNear: function (s) {
         if (!s || dlgOpen) { actBtn.hidden = true; return; }
         actBtn.hidden = false;
-        actBtn.innerHTML = '<kbd>E</kbd>' + (s.look ? 'Поговорить: ' + esc(s.name) : esc(s.label || s.game || ''));
+        actBtn.innerHTML = '<kbd>E</kbd>' + (s.look ? 'Поговорить: ' + esc(s.name) : s.id === 'office' ? 'Войти в офис' : s.href ? 'Играть: ' + esc(s.game) : esc(s.label || s.game || ''));
       },
       onTalk: onTalk, onSpot: onSpot
     });
@@ -46,7 +49,7 @@
     function freshRun() {
       var c = CFG[Q.grade], m = {};
       if (Q.meters) Object.keys(Q.meters).forEach(function (k) { m[k] = Q.meters[k].v; });
-      return { f: { keep: Object.assign({}, prog.keep || {}) }, nerves: Q.nerves || c.nerves, meters: m, items: [], started: false, over: false, pt: 0, left: Q.timer ? Q.timer.sec : 0, cool: -99 };
+      return { f: { keep: Object.assign({}, prog.keep || {}), _t0: Date.now() }, nerves: Q.nerves || c.nerves, meters: m, items: [], started: false, over: false, pt: 0, left: Q.timer ? Q.timer.sec : 0, cool: -99 };
     }
     function save() { if (run && !run.over) K.set(runKey, run); }
 
@@ -57,10 +60,10 @@
     var dlgOpen = false, curPick = null, curCount = 0, quiz = null;
 
     function who(id) {
-      if (id === 'me') return { name: side.hero, role: Q ? 'вы, ' + GRADES[Q.grade - 1].toLowerCase() : 'вы', color: '#E62020' };
+      if (id === 'me') return { name: side.hero, role: Q && !side.free ? 'вы, ' + GRADES[Q.grade - 1].toLowerCase() : '', color: '#E62020' };
       if (id === 'phone') return { name: 'Телефон', role: 'сообщение', color: '#1C1313' };
       var n = office.npcs[id];
-      if (n) return { name: n.name, role: n.role, color: n.look.shirt === '#FFFFFF' ? '#5B6B80' : n.look.shirt };
+      if (n) return { name: n.name, role: n.role, color: !n.look || n.look.shirt === '#FFFFFF' ? '#5B6B80' : n.look.shirt };
       var p = Q && Q.people && Q.people[id];
       return p || { name: id, role: '', color: '#5B6B80' };
     }
@@ -148,6 +151,8 @@
     var api = {
       set: function (k, v) { run.f[k] = v; save(); update(); }, n: nerves, m: meter, item: item,
       meter: function (k) { return run.meters[k]; }, nerves: function () { return run.nerves; },
+      game: function (k) { return K.get('last:' + k, null); },
+      played: function (k, min) { var r = K.get('last:' + k, null); return !!(r && r.t >= (run.f._t0 || 0) && (min == null || r.v >= min)); },
       keep: function (k, v) { var o = {}; o[k] = v; keep(o); }, time: function (d) { if (Q.timer) { run.left = Math.max(0, run.left + d); hud(); } },
       has: function (s) { return run.items.indexOf(s) >= 0; }, toast: function (s) { K.toast(s, 3200); },
       end: function (id) { finish(id); }, show: function (id) { showNode(id); }, grade: function () { return Q.grade; }
@@ -166,7 +171,7 @@
     function renderLog() {
       if (!Q || !run || run.over) { log.hidden = true; return; }
       log.hidden = false;
-      var html = '<div class="kv-when">' + esc(GRADES[Q.grade - 1]) + ' · задание от: ' + esc(who(Q.giver).name) + '</div><h4>' + esc(Q.title) + '</h4>';
+      var html = '<div class="kv-when">' + esc(Q.tag || GRADES[Q.grade - 1]) + ' · задание от: ' + esc(who(Q.giver).name) + '</div><h4>' + esc(Q.title) + '</h4>';
       if (!run.started) html += '<p class="kv-sub">Задание выдаёт ' + esc(who(Q.giver).name) + ', над головой знак «!». Нажмите на него.</p>';
       else {
         var open = -1;
@@ -189,6 +194,7 @@
         if (!run.started) { if (office.npcs[Q.giver]) office.npcs[Q.giver].mark = '!'; }
         else if (CFG[Q.grade].hint >= 1 && Q.hint) (Q.hint(f, api) || []).forEach(function (id) { if (office.npcs[id]) office.npcs[id].mark = '?'; else if (office.spots[id]) office.spots[id].mark = '?'; });
       }
+      else if (!Q && side.free) side.quests.forEach(function (id) { var q = KV.quests[id]; if (q && !prog.done[id] && office.npcs[q.giver]) office.npcs[q.giver].mark = '!'; });
       hud(); renderLog();
     }
 
@@ -200,6 +206,10 @@
     }
     function onTalk(n) {
       if (dlgOpen || K.cardOpen()) return;
+      if (!Q && side.free) {
+        var offer = side.quests.map(function (id) { return KV.quests[id]; }).filter(function (q) { return q && q.giver === n.id && !prog.done[q.id]; })[0];
+        if (offer) { offerQuest(offer); return; }
+      }
       if (!Q || !run || run.over) { ambient(n); return; }
       if (!run.started) {
         if (n.id === Q.giver) { run.started = true; save(); update(); showNode(Q.start); return; }
@@ -207,6 +217,15 @@
       }
       var r = Q.talk && Q.talk[n.id] ? Q.talk[n.id](run.f, api) : null;
       if (r) showNode(r); else ambient(n);
+    }
+    function offerQuest(q) {
+      K.card({ stamp: 'Задание во дворе', title: q.title, text: esc(q.intro) + '<br><br>Задание даёт <b>' + esc(who(q.giver).name) + '</b>.',
+        btns: [['Взяться', function () { K.set('kv:active:' + side.id, q.id); location.href = '?q=' + q.id; }], ['Позже']] });
+    }
+    function listFree() {
+      var rows = side.quests.map(function (id) { var q = KV.quests[id]; if (!q) return ''; var d = prog.done[id];
+        return '<li>' + (d ? '✓ ' : '! ') + '<b>' + esc(q.title) + '</b> · ' + esc(who(q.giver).name) + (d ? ' · «' + esc(d.stamp) + '»' : '') + '</li>'; }).join('');
+      K.card({ stamp: side.name, title: 'Задания во дворе', text: 'Подойдите к коллеге со знаком «!» над головой.<ul class="kv-free">' + rows + '</ul>', btns: [['Понятно']] });
     }
     function onSpot(s) {
       if (dlgOpen || K.cardOpen()) return;
@@ -230,6 +249,17 @@
         render(who('me'), office.defaults.pc, [{ t: 'Открыть «Контент-план» в новой вкладке' }, { t: 'Закрыть' }], function (i) { if (i === 0) window.open('../kontent-plan/', '_blank'); close(); });
         return;
       }
+      if (s.href) {
+        var lab = K.get('label:' + s.id, null);
+        K.card({ stamp: s.place, title: s.game, text: esc(s.text || '') + (lab ? '<br><br>Ваш рекорд: <b>' + esc(lab) + '</b>' : '') + (run && run.started && !run.over ? '<br><br>Задание сохранится: после игры возвращайтесь во двор.' : ''),
+          btns: [['Играть', function () { location.href = s.href; }], ['Не сейчас']] });
+        return;
+      }
+      if (s.id === 'office') {
+        K.card({ stamp: 'Офис', title: 'Вернуться к работе?', text: 'Борис уже дважды спрашивал в чате, где вы. В офисе ждут квесты агентства и «Бурёнки в кедах».',
+          btns: [['В офис', function () { location.href = '../'; }], ['Ещё пять минут']] });
+        return;
+      }
       var d = office.defaults[s.id];
       if (Array.isArray(d)) { s.li = ((s.li == null ? -1 : s.li) + 1) % d.length; d = d[s.li]; }
       say('me', d || s.label || '');
@@ -240,6 +270,7 @@
       if (!Q || !run || !run.started || run.over || K.cardOpen() || K.bossOn() || document.hidden) return;
       if (Q.timer && (Q.timer.live || !dlgOpen)) { run.left -= 1; hud(); if (run.left <= 0) { finish(Q.timer.end); return; } }
       if (dlgOpen) return;
+      if (side.free && !Q.pings) return;
       var c = CFG[Q.grade];
       run.pt += 1;
       if (run.pt >= (Q.ping || c.ping)) {
@@ -260,11 +291,20 @@
       var promoted = false;
       if (endId !== 'burnout') {
         prog.done[Q.id] = { e: endId, stamp: e.stamp };
-        if (prog.grade < Q.grade + 1) { prog.grade = Math.min(5, Q.grade + 1); promoted = Q.grade < 5; }
+        if (!side.free && prog.grade < Q.grade + 1) { prog.grade = Math.min(5, Q.grade + 1); promoted = Q.grade < 5; }
         K.set('kv:prog:' + side.id, prog);
-        K.set('label:kvest-' + side.id, GRADES[Math.min(5, prog.grade) - 1]);
+        if (!side.free) K.set('label:kvest-' + side.id, GRADES[Math.min(5, prog.grade) - 1]);
       }
       K.del(runKey);
+      if (side.free) {
+        K.del('kv:active:' + side.id);
+        var ft = typeof e.text === 'function' ? e.text(run.f) : e.text;
+        var left = side.quests.filter(function (id) { return KV.quests[id] && !prog.done[id]; }).length;
+        ft += left ? '<br><br>Во дворе ещё ' + left + ' ' + (left === 1 ? 'задание' : left < 5 ? 'задания' : 'заданий') + ': ищите знак «!».' : '<br><br><b>Все задания во дворе выполнены.</b>';
+        K.card({ stamp: e.stamp, title: e.title, text: ft, nums: [['Нервы', Math.round(run.nerves)]],
+          btns: [['Во двор', function () { location.href = location.pathname; }], ['Сыграть ещё раз', function () { K.set('kv:active:' + side.id, Q.id); location.href = '?q=' + Q.id; }]] });
+        update(); return;
+      }
       var text = typeof e.text === 'function' ? e.text(run.f) : e.text;
       if (endId !== 'burnout' && Q.grade < 5) text += '<br><br><b>Повышение.</b> Теперь вы ' + GRADES[Q.grade].toLowerCase() + '.';
       if (endId !== 'burnout' && Q.grade === 5) text += '<br><br><b>Вы прошли путь от стажёра до лида.</b>';
@@ -291,11 +331,12 @@
     }
 
     // ——— запуск ———
-    var stats = [['nerves', 'Нервы'], ['grade', 'Грейд'], ['day', 'Когда']];
+    var stats = side.free ? [['nerves', 'Нервы'], ['day', 'Когда']] : [['nerves', 'Нервы'], ['grade', 'Грейд'], ['day', 'Когда']];
     if (Q && Q.meters) Object.keys(Q.meters).forEach(function (k) { stats.push(['m_' + k, Q.meters[k].label]); });
     if (Q && Q.timer) stats.push(['timer', Q.timer.label || 'Осталось']);
-    K.mount({ room: side.name + ' · ' + side.hero, game: Q ? Q.title : 'Квесты', back: { href: '../dvor/', label: 'Во двор' }, stats: Q ? stats : [] });
-    K.action('Квесты', function () { location.href = '?side=' + side.id; });
+    K.mount({ room: side.free ? side.name : side.name + ' · ' + side.hero, game: Q ? Q.title : (side.free ? side.title : 'Квесты'), back: side.back || { href: '../dvor/', label: 'Во двор' }, stats: Q ? stats : (side.stats || []) });
+    if (side.free) K.action('Задания', listFree); else K.action('Квесты', function () { location.href = '?side=' + side.id; });
+    if (side.extra) side.extra(W, office);
     actBtn.addEventListener('click', function () { if (W.near) W.arrive(W.near); });
     window.addEventListener('keydown', function (e) {
       if (!dlgOpen || K.bossOn() || K.cardOpen()) return;
@@ -308,19 +349,25 @@
     if (window.ResizeObserver) new ResizeObserver(function () { W.resize(); }).observe(stage);
     W.bind(); W.start();
 
-    if (!Q) { update(); menu(); return; }
+    exposeDebug();
+    if (!Q) { update(); if (!side.free) menu(); return; }
     var saved = K.get(runKey, null);
     function begin(r) { run = r; update(); }
     var intro = esc(Q.intro) + '<br><br>Задание выдаёт <b>' + esc(who(Q.giver).name) + '</b>, ' + esc(who(Q.giver).role) + '. Ищите знак «!».';
-    if (saved && saved.f && !saved.over) {
+    if (side.free) {
+      if (saved && saved.f && !saved.over) {
+        run = saved; update(); K.toast('Задание: ' + Q.title);
+        if (Q.check) { var cm = Q.check(run.f, api); if (cm) setTimeout(function () { K.toast(cm, 4000); }, 700); }
+      } else { run = freshRun(); run.started = true; K.set('kv:active:' + side.id, Q.id); save(); update(); setTimeout(function () { showNode(Q.start); }, 450); }
+    } else if (saved && saved.f && !saved.over) {
       run = saved; update();
       K.card({ stamp: GRADES[Q.grade - 1] + ' · ' + Q.when, title: Q.title, text: intro, btns: [['Продолжить', function () {}], ['Начать заново', function () { K.del(runKey); begin(freshRun()); }]] });
     } else {
       begin(freshRun());
       K.card({ stamp: GRADES[Q.grade - 1] + ' · ' + Q.when, title: Q.title, text: intro, btns: [['Начать', function () {}]] });
     }
-    window.__kv = { get run() { return run; }, W: W, office: office, Q: Q, talk: onTalk, use: function (id) { onSpot(office.spots[id]); },
+    function exposeDebug() { window.__kv = { get run() { return run; }, W: W, office: office, Q: Q, talk: onTalk, use: function (id) { onSpot(office.spots[id]); },
       choose: function (i) { if (curPick) curPick(i); }, get dlg() { return dlgOpen ? dlg.querySelector('.kv-text').textContent : null; },
-      get choices() { return dlgOpen ? Array.prototype.map.call(dlg.querySelectorAll('.kv-ch button span'), function (b) { return b.firstChild.textContent; }) : []; } };
+      get choices() { return dlgOpen ? Array.prototype.map.call(dlg.querySelectorAll('.kv-ch button span'), function (b) { return b.firstChild.textContent; }) : []; } }; }
   };
 })();
