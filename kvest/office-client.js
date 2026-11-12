@@ -18,7 +18,7 @@
     ];
     var DOORS = {};
     ['h:3:6', 'h:8:5', 'h:12:5', 'h:16:6', 'v:19:3', 'v:19:6', 'v:19:7', 'v:19:10', 'h:2:8', 'h:6:8', 'v:9:11', 'h:12:8', 'v:10:10',
-      'h:16:8', 'h:17:13', 'h:11:14', 'v:10:15', 'h:4:14', 'v:9:16'].forEach(function (k) { DOORS[k] = 1; });
+      'h:16:8', 'h:17:13', 'h:11:14', 'v:10:15', 'h:4:14', 'v:9:16', 'v:0:16'].forEach(function (k) { DOORS[k] = 1; });
     function roomAt(x, y) { for (var i = 0; i < ROOMS.length; i++) { var r = ROOMS[i]; if (x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1) return r; } return null; }
 
     // пол
@@ -149,7 +149,7 @@
         lines: ['Двадцать лет беру только «Бурёнку». Знаю, о чём говорю.', 'Корова у вас на картинках грустная. Почему?'] }
     };
     var spots = {
-      pc: { id: 'pc', label: 'Ваш компьютер', x: 2.2, y: 10.95, tx: 2.2, ty: 9.9, tz: 52 },
+      pc: { id: 'pc', label: 'Ваш компьютер', x: 2.2, y: 11.1, tx: 2.2, ty: 9.9, tz: 52 },
       printer: { id: 'printer', label: 'Принтер', x: 8.3, y: 9.45, tx: 8.3, ty: 8.6, tz: 40 },
       calendar: { id: 'calendar', label: 'Календарь', x: 0.75, y: 11.0, tx: 0.2, ty: 11, tz: 70 },
       cooler: { id: 'cooler', label: 'Кулер', x: 18.5, y: 9.35, tx: 18.5, ty: 8.55, tz: 56 },

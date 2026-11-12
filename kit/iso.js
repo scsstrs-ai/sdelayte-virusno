@@ -34,13 +34,14 @@
     W.cam = { x: 0, y: 0 }; W.zoom = 1; W.vw = 300; W.vh = 300; W.dpr = 1; W.t = 0;
     W.keys = {}; W.night = false; W.near = null; W.hoverSpot = null; W.tap = null; W.paused = false; W.chatAt = 4;
     var ex = W.ext;
-    W.flat = !!o.flat; W.TS = o.ts || 48; W.ZK = o.zk || 0.75;
+    W.flat = !!o.flat; W.TS = o.ts || 48; W.ZK = o.zk || 0.75; W.ox = 0; W.oy = 0; // сдвиг для частей карты (двор слева, офис справа)
     W.bounds = W.flat ? { x0: -24, x1: (W.cols + ex) * W.TS + 24, y0: -W.top * W.ZK - 24, y1: (W.rows + ex) * W.TS + 24 }
       : { x0: -(W.rows + ex) * TW / 2 - 24, x1: (W.cols + ex) * TW / 2 + 24, y0: -W.top, y1: (W.cols + W.rows + 2 * ex) * TH / 2 + 24 };
   }
   var P = World.prototype;
   P.shade = shade; P.hash = hash; P.rr = rr; P.dot = dot;
   P.iso = function (x, y, z) {
+    x += this.ox; y += this.oy;
     if (this._rec) this._rec.push([x, y, z || 0]);
     if (this.flat) return [x * this.TS, y * this.TS - (z || 0) * this.ZK];
     return [(x - y) * TW / 2, (x + y) * TH / 2 - (z || 0)];
@@ -49,7 +50,11 @@
   P.lift = function (n, px) { var b = this.iso(n.x, n.y, n.z || 0); return [b[0], b[1] - px]; }; // точка над головой в пикселях спрайта
   P.inb = function (x, y) { return x >= 0 && y >= 0 && x < this.cols && y < this.rows; };
   P.walk = function (x, y) { return this.inb(x, y) && !this.solid[y][x]; };
-  P.block = function (x0, y0, x1, y1) { for (var y = y0; y <= (y1 == null ? y0 : y1); y++) for (var x = x0; x <= (x1 == null ? x0 : x1); x++) if (this.inb(x, y)) this.solid[y][x] = true; };
+  P.block = function (x0, y0, x1, y1) {
+    if (x1 == null) x1 = x0; if (y1 == null) y1 = y0;
+    x0 += this.ox; x1 += this.ox; y0 += this.oy; y1 += this.oy;
+    for (var y = y0; y <= y1; y++) for (var x = x0; x <= x1; x++) if (this.inb(x, y)) this.solid[y][x] = true;
+  };
   P.free = function (x, y, r) {
     if (!(this.walk(Math.floor(x - r), Math.floor(y - r)) && this.walk(Math.floor(x + r), Math.floor(y - r)) &&
       this.walk(Math.floor(x - r), Math.floor(y + r)) && this.walk(Math.floor(x + r), Math.floor(y + r)))) return false;
@@ -75,7 +80,7 @@
     var h = o.h || 26, col = o.col || "#EDE6DA", top = o.top || "#FFFFFF", gaps = o.gaps || [];
     for (var u = a; u < b; u++) {
       if (gaps.indexOf(u) >= 0) continue;
-      var key = horiz ? "h:" + u + ":" + y0 : "v:" + x0 + ":" + u;
+      var key = horiz ? "h:" + (u + W.ox) + ":" + (y0 + W.oy) : "v:" + (x0 + W.ox) + ":" + (u + W.oy);
       if (W.edges[key]) continue;
       W.edges[key] = 1;
       (function (u) {
@@ -85,7 +90,15 @@
       })(u);
     }
   };
-  P.prop = function (k, fn) { this.props.push({ k: k, d: fn }); };
+  P.prop = function (k, fn) {
+    var W = this, ox = W.ox, oy = W.oy;
+    if (ox || oy) {
+      var inner = fn;
+      fn = function (c, w) { var a = W.ox, b = W.oy; W.ox = ox; W.oy = oy; try { inner(c, w); } finally { W.ox = a; W.oy = b; } };
+      if (k > -100 && k < 1e4) k += ox + oy;
+    }
+    this.props.push({ k: k, d: fn });
+  };
   // вид сверху: глубину считаем по середине следа предмета на полу, один раз прогнав его рисование вхолостую
   var DUMMY = null;
   P.measure = function (it) {
@@ -301,11 +314,14 @@
     W.zoom = Math.max(W.o.minZoom || 0.6, Math.min(W.o.maxZoom || 1.1, fit));
   };
   P.bakeGround = function (fn) {
-    var W = this, gs = 2, b = W.bounds;
-    W.gx = b.x0; W.gy = 0; W.gw = b.x1 - b.x0; W.gh = b.y1;
-    var g = document.createElement('canvas'); g.width = Math.ceil(W.gw * gs); g.height = Math.ceil(W.gh * gs);
-    var gc = g.getContext('2d'); gc.setTransform(gs, 0, 0, gs, -W.gx * gs, 0);
-    var keep = W.ctx; W.ctx = gc; fn(W, gc); W.ctx = keep; W.ground = g;
+    var W = this, b = W.bounds;
+    if (!W.ground) { // один холст земли на всю карту: двор и офис рисуют на него по очереди
+      W.gx = b.x0; W.gy = 0; W.gw = b.x1 - b.x0; W.gh = b.y1;
+      var gs = W.gw * W.gh > 2.4e6 ? 1.5 : 2;
+      var g = document.createElement('canvas'); g.width = Math.ceil(W.gw * gs); g.height = Math.ceil(W.gh * gs);
+      W.gctx = g.getContext('2d'); W.gctx.setTransform(gs, 0, 0, gs, -W.gx * gs, 0); W.ground = g;
+    }
+    var keep = W.ctx; W.ctx = W.gctx; fn(W, W.gctx); W.ctx = keep;
   };
 
   // ход времени
