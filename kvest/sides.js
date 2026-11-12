@@ -5,7 +5,7 @@ KV.side('client', {
   quests: ['k1', 'k2', 'k3', 'k4', 'k5']
 });
 KV.side('dvor', {
-  name: 'Двор офиса', title: 'Зона отдыха', hero: 'Вы', office: 'dvor', cols: 24, rows: 20, flat: false, ext: 3, top: 215, zoom: [0.5, 0.62, 1.05], free: true,
+  name: 'Двор офиса', title: 'Зона отдыха', hero: 'Вы', office: 'dvor', cols: 24, rows: 20, ext: 3, top: 215, free: true,
   back: { href: '../', label: 'В офис' }, stats: [['clock', 'Время', '—'], ['done', 'Рекорды', '—']],
   quests: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7']
 });

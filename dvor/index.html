@@ -190,13 +190,15 @@
       W.shadow(x, y, 0.6, 0.14);
       W.cyl(x, y, 0, 0.06, 20, '#4A4F57'); W.cyl(x, y, 20, 0.48, 3, '#EDE6DA', '#FBF8F2');
       W.cyl(x, y, 23, 0.035, 50, '#6B6F76');
-      var ap = W.iso(x, y, 92), n = 12, R = 1.05, secs = [];
+      var ap = W.iso(x, y, 92), n = 12, R = W.flat ? 0.85 : 1.05, secs = [];
       for (var i = 0; i < n; i++) { var a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2, am = (a0 + a1) / 2; secs.push({ a0: a0, a1: a1, dep: Math.cos(am) + Math.sin(am), i: i, lit: Math.cos(am - 3.93) }); }
       secs.sort(function (a, b) { return a.dep - b.dep; });
+      if (W.flat) c.globalAlpha = 0.55;
       secs.forEach(function (s) {
         W.poly([ap, W.iso(x + Math.cos(s.a0) * R, y + Math.sin(s.a0) * R, 70), W.iso(x + Math.cos(s.a1) * R, y + Math.sin(s.a1) * R, 70)], shade(s.i % 2 ? '#FBF7EF' : col, s.lit * 0.12));
       });
       circ(c, ap, 2.5, '#6B6F76');
+      c.globalAlpha = 1;
     });
   }
   function pole(x, y, h) { W.block(Math.floor(x), Math.floor(y)); W.prop(x + y, function () { W.box(x - 0.04, y - 0.04, 0, 0.08, 0.08, h, '#5A4634'); }); }
@@ -250,7 +252,7 @@
     W.box(11.1, 3.0, 0, 2.8, 0.5, 4, '#D3CABD');
     W.face('x', 10.2, 14.8, 3.006, 62, 92, '#E62020');
     var p = W.iso(12.5, 3.007, 77);
-    c.save(); c.transform(1, 0.5, 0, 1, p[0], p[1]); c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.2; c.beginPath(); c.ellipse(0, 0, 66, 11.5, 0, 0, 7); c.stroke(); c.restore();
+    c.save(); if (W.flat) c.transform(1, 0, 0, 1, p[0], p[1]); else c.transform(1, 0.5, 0, 1, p[0], p[1]); c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.2; c.beginPath(); c.ellipse(0, 0, W.flat ? 92 : 66, W.flat ? 15 : 11.5, 0, 0, 7); c.stroke(); c.restore();
     W.faceText('сделайте вирусно', 12.5, 3.007, 77, 'x', '800 15px ' + K.FONT, '#FFFFFF', 'center');
   });
   // кашпо вдоль фасада
@@ -284,6 +286,7 @@
       W.box(x1 - 0.16, y1 - 0.16, 0, 0.16, 0.16, H, post);
       W.box(x1 - 0.13, y0 + 0.16, 22, 0.08, y1 - y0 - 0.32, 3, rail);
       var o = 0.32, I = W.iso.bind(W), A = I((x0 + x1) / 2, (y0 + y1) / 2, H + 42);
+      if (W.flat) c.globalAlpha = 0.3; // сверху крыша полупрозрачная, чтобы было видно Иру
       var c00 = I(x0 - o, y0 - o, H), c10 = I(x1 + o, y0 - o, H), c11 = I(x1 + o, y1 + o, H), c01 = I(x0 - o, y1 + o, H);
       W.poly([A, c00, c10], shade(roof, 0.12)); W.poly([A, c00, c01], shade(roof, 0.06));
       W.poly([A, c01, c11], roof); W.poly([A, c10, c11], shade(roof, -0.2));
@@ -292,6 +295,7 @@
       c.strokeStyle = 'rgba(0,0,0,.12)'; c.lineWidth = 1;
       for (var k = 1; k < 5; k++) { var e1 = I(x0 - o + (x1 - x0 + 2 * o) * k / 5, y1 + o, H); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(e1[0], e1[1]); c.stroke(); var e2 = I(x1 + o, y0 - o + (y1 - y0 + 2 * o) * k / 5, H); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(e2[0], e2[1]); c.stroke(); }
       circ(c, [A[0], A[1] - 3], 4, '#F4EFE6');
+      c.globalAlpha = 1;
     });
   })();
 
@@ -310,11 +314,11 @@
     W.shadow(cx, cy, 1.8, 0.14);
     W.cyl(cx, cy, 0, 1.6, 14, '#CFC5B5', '#E2DACD');
     var w = W.iso(cx, cy, 13);
-    c.fillStyle = '#5FB4DE'; c.beginPath(); c.ellipse(w[0], w[1], 1.38 * 45.25, 1.38 * 22.63, 0, 0, 7); c.fill();
+    c.fillStyle = '#5FB4DE'; c.beginPath(); var wr = W.rxy(1.38); c.ellipse(w[0], w[1], wr[0], wr[1], 0, 0, 7); c.fill();
     for (var k = 0; k < 3; k++) {
       var ph = (W.t * 0.45 + k / 3) % 1;
       c.strokeStyle = 'rgba(255,255,255,' + (0.55 * (1 - ph)) + ')'; c.lineWidth = 1.5;
-      c.beginPath(); c.ellipse(w[0], w[1], (0.35 + ph) * 45.25, (0.35 + ph) * 22.63, 0, 0, 7); c.stroke();
+      c.beginPath(); var pr = W.rxy(0.35 + ph); c.ellipse(w[0], w[1], pr[0], pr[1], 0, 0, 7); c.stroke();
     }
     W.cyl(cx, cy, 13, 0.26, 32, '#CFC5B5', '#DDD5C7');
     W.cyl(cx, cy, 45, 0.75, 6, '#CFC5B5', '#5FB4DE');
@@ -345,6 +349,10 @@
     W.faceText('KPI', 17.81, 15.3, 62, 'y', '800 13px ' + K.FONT, '#FFB020');
     W.faceText('3 : 0', 17.81, 15.3, 45, 'y', '800 15px ' + K.FONT, '#FF5A3C');
     W.faceText('Q4', 17.81, 13.95, 62, 'y', '800 11px ' + K.FONT, '#7FE3A0');
+    if (W.flat) { // сверху боковая грань табло не видна: лицевая табличка на торце
+      W.box(17.15, 15.45, 34, 1.0, 0.12, 38, '#22262E');
+      W.faceText('KPI  3 : 0', 17.22, 15.575, 54, 'x', '800 10px ' + K.FONT, '#FFB020');
+    }
   });
   W.block(20, 10);
   W.prop(20.5 + 10.3, function (c) {
