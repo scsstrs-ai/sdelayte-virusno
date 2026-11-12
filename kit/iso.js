@@ -34,11 +34,19 @@
     W.cam = { x: 0, y: 0 }; W.zoom = 1; W.vw = 300; W.vh = 300; W.dpr = 1; W.t = 0;
     W.keys = {}; W.night = false; W.near = null; W.hoverSpot = null; W.tap = null; W.paused = false; W.chatAt = 4;
     var ex = W.ext;
-    W.bounds = { x0: -(W.rows + ex) * TW / 2 - 24, x1: (W.cols + ex) * TW / 2 + 24, y0: -W.top, y1: (W.cols + W.rows + 2 * ex) * TH / 2 + 24 };
+    W.flat = !!o.flat; W.TS = o.ts || 48; W.ZK = o.zk || 0.75;
+    W.bounds = W.flat ? { x0: -24, x1: (W.cols + ex) * W.TS + 24, y0: -W.top * W.ZK - 24, y1: (W.rows + ex) * W.TS + 24 }
+      : { x0: -(W.rows + ex) * TW / 2 - 24, x1: (W.cols + ex) * TW / 2 + 24, y0: -W.top, y1: (W.cols + W.rows + 2 * ex) * TH / 2 + 24 };
   }
   var P = World.prototype;
   P.shade = shade; P.hash = hash; P.rr = rr; P.dot = dot;
-  P.iso = function (x, y, z) { return [(x - y) * TW / 2, (x + y) * TH / 2 - (z || 0)]; };
+  P.iso = function (x, y, z) {
+    if (this._rec) this._rec.push([x, y, z || 0]);
+    if (this.flat) return [x * this.TS, y * this.TS - (z || 0) * this.ZK];
+    return [(x - y) * TW / 2, (x + y) * TH / 2 - (z || 0)];
+  };
+  P.rxy = function (r) { return this.flat ? [r * this.TS, r * this.TS * 0.8] : [r * TW / R2, r * TH / R2]; };
+  P.lift = function (n, px) { var b = this.iso(n.x, n.y, n.z || 0); return [b[0], b[1] - px]; }; // точка над головой в пикселях спрайта
   P.inb = function (x, y) { return x >= 0 && y >= 0 && x < this.cols && y < this.rows; };
   P.walk = function (x, y) { return this.inb(x, y) && !this.solid[y][x]; };
   P.block = function (x0, y0, x1, y1) { for (var y = y0; y <= (y1 == null ? y0 : y1); y++) for (var x = x0; x <= (x1 == null ? x0 : x1); x++) if (this.inb(x, y)) this.solid[y][x] = true; };
@@ -71,12 +79,24 @@
       if (W.edges[key]) continue;
       W.edges[key] = 1;
       (function (u) {
-        if (horiz) W.prop(u + 0.5 + y0 + (o.dk || 0), function () { W.box(u, y0 - 0.06, 0, 1, 0.12, h, col, { top: top, left: col, right: shade(col, -0.14) }); });
-        else W.prop(x0 + u + 0.5 + (o.dk || 0), function () { W.box(x0 - 0.06, u, 0, 0.12, 1, h, col, { top: top, left: shade(col, -0.07), right: shade(col, -0.16) }); });
+        var th = W.flat ? 0.24 : 0.12, fc = W.flat ? (o.flatCol || '#3A2E2D') : col, tc = W.flat ? (o.flatTop || '#5A4845') : top;
+        if (horiz) W.prop(u + 0.5 + y0 + (o.dk || 0), function () { W.box(u, y0 - th / 2, 0, 1, th, h, fc, { top: tc, left: fc, right: shade(fc, -0.14) }); });
+        else W.prop(x0 + u + 0.5 + (o.dk || 0), function () { W.box(x0 - th / 2, u, 0, th, 1, h, fc, { top: tc, left: shade(fc, -0.07), right: shade(fc, -0.16) }); });
       })(u);
     }
   };
   P.prop = function (k, fn) { this.props.push({ k: k, d: fn }); };
+  // вид сверху: глубину считаем по середине следа предмета на полу, один раз прогнав его рисование вхолостую
+  var DUMMY = null;
+  P.measure = function (it) {
+    if (!DUMMY) DUMMY = document.createElement('canvas').getContext('2d');
+    var keep = this.ctx, rec = []; this.ctx = DUMMY; this._rec = rec;
+    try { it.d(DUMMY, this); } catch (e) {}
+    this._rec = null; this.ctx = keep;
+    var pts = rec.filter(function (r) { return r[2] === 0; }); if (!pts.length) pts = rec;
+    var mn = 1e9, mx = -1e9; pts.forEach(function (r) { if (r[1] < mn) mn = r[1]; if (r[1] > mx) mx = r[1]; });
+    it.ay = pts.length ? (mn + mx) / 2 : 0;
+  };
 
   // примитивы рисования в координатах мира
   P.poly = function (pts, fill, stroke, lw) {
@@ -99,19 +119,20 @@
   };
   P.faceText = function (str, x, y, z, axis, font, color, align) { // axis 'x': текст вдоль +x; 'y': вдоль −y (точка x,y — левый край)
     var c = this.ctx, p = this.iso(x, y, z);
-    c.save(); c.transform(1, axis === 'x' ? 0.5 : -0.5, 0, 1, p[0], p[1]);
+    if (this.flat && axis !== 'x') return;
+    c.save(); c.transform(1, this.flat ? 0 : (axis === 'x' ? 0.5 : -0.5), 0, 1, p[0], p[1]);
     c.font = font; c.fillStyle = color; c.textAlign = align || 'left'; c.textBaseline = 'middle'; c.fillText(str, 0, 0);
     c.restore();
   };
   P.cyl = function (cx, cy, z, r, h, col, topCol) {
-    var c = this.ctx, b = this.iso(cx, cy, z), t = this.iso(cx, cy, z + h), rx = r * TW / R2, ry = r * TH / R2;
+    var c = this.ctx, b = this.iso(cx, cy, z), t = this.iso(cx, cy, z + h), rq = this.rxy(r), rx = rq[0], ry = rq[1];
     var g = c.createLinearGradient(b[0] - rx, 0, b[0] + rx, 0); g.addColorStop(0, shade(col, 0.1)); g.addColorStop(1, shade(col, -0.28));
     c.fillStyle = g; c.beginPath(); c.moveTo(t[0] - rx, t[1]); c.lineTo(t[0] + rx, t[1]); c.lineTo(b[0] + rx, b[1]);
     c.ellipse(b[0], b[1], rx, ry, 0, 0, Math.PI); c.closePath(); c.fill();
     c.fillStyle = topCol || shade(col, 0.2); c.beginPath(); c.ellipse(t[0], t[1], rx, ry, 0, 0, 7); c.fill();
   };
   P.ell = function (cx, cy, z, r, fill, stroke, lw) {
-    var c = this.ctx, p = this.iso(cx, cy, z); c.beginPath(); c.ellipse(p[0], p[1], r * TW / R2, r * TH / R2, 0, 0, 7);
+    var c = this.ctx, p = this.iso(cx, cy, z); c.beginPath(); var rq = this.rxy(r); c.ellipse(p[0], p[1], rq[0], rq[1], 0, 0, 7);
     if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); }
   };
   P.shadow = function (x, y, r, a) { this.ell(x, y, 0, r, 'rgba(0,0,0,' + (a || 0.16) + ')'); };
@@ -267,6 +288,7 @@
   P.toScreen = function (X, Y) { return [(X - this.cam.x) * this.zoom + this.vw / 2, (Y - this.cam.y) * this.zoom + this.vh / 2]; };
   P.toTile = function (sx, sy) {
     var X = (sx - this.vw / 2) / this.zoom + this.cam.x, Y = (sy - this.vh / 2) / this.zoom + this.cam.y, a = X / (TW / 2), b = Y / (TH / 2);
+    if (this.flat) return [X / this.TS, Y / this.TS];
     return [(a + b) / 2, (b - a) / 2];
   };
   P.resize = function () {
@@ -289,7 +311,8 @@
   // ход времени
   P.update = function (dt) {
     var W = this, p = W.player, sp = 3.3, K = W.keys, kx = 0, ky = 0, mx = 0, my = 0;
-    if (K.up) { kx -= 1; ky -= 1; } if (K.down) { kx += 1; ky += 1; } if (K.left) { kx -= 1; ky += 1; } if (K.right) { kx += 1; ky -= 1; }
+    if (W.flat) { if (K.up) ky -= 1; if (K.down) ky += 1; if (K.left) kx -= 1; if (K.right) kx += 1; }
+    else { if (K.up) { kx -= 1; ky -= 1; } if (K.down) { kx += 1; ky += 1; } if (K.left) { kx -= 1; ky += 1; } if (K.right) { kx += 1; ky -= 1; } }
     if (kx || ky) { p.path = null; p.pending = null; var l = Math.hypot(kx, ky); mx = kx / l * sp * dt; my = ky / l * sp * dt; }
     else if (p.path && p.path.length) {
       var tg = p.path[0], dx = tg[0] - p.x, dy = tg[1] - p.y, d = Math.hypot(dx, dy), st = sp * dt;
@@ -304,7 +327,7 @@
       if (W.free(p.x, p.y + my, 0.22)) p.y += my;
       if (p.x === ox && p.y === oy && p.path) { p.path = null; p.pending = null; }
       p.moving = true; p.walk += dt * 11;
-      var sx = mx - my, sy = mx + my;
+      var sx = W.flat ? mx : mx - my, sy = W.flat ? my : mx + my;
       if (Math.abs(sx) > 1e-4) p.flip = sx > 0 ? 1 : -1;
       p.face = sy < -1e-4 ? -1 : 1;
     } else p.moving = false;
@@ -313,7 +336,7 @@
       var o = n.orbit, ox = n.x, oy = n.y;
       n.ang = (n.ang || 0) + o.sp * dt;
       n.x = o.cx + Math.cos(n.ang) * o.rx; n.y = o.cy + Math.sin(n.ang) * o.ry;
-      var sx2 = (n.x - ox) - (n.y - oy), sy2 = (n.x - ox) + (n.y - oy);
+      var sx2 = W.flat ? n.x - ox : (n.x - ox) - (n.y - oy), sy2 = W.flat ? n.y - oy : (n.x - ox) + (n.y - oy);
       n.flip = sx2 > 0 ? 1 : -1; n.face = sy2 < 0 ? -1 : 1; n.moving = true; n.walk = (n.walk || 0) + dt * 9;
     });
     var near = null, nd = 1e9;
@@ -347,8 +370,9 @@
     });
     if (W.tap && W.t - W.tap.t < 0.6) { var tq = (W.t - W.tap.t) / 0.6; W.ell(W.tap.x, W.tap.y, 0, 0.2 + tq * 0.3, null, 'rgba(255,255,255,' + (1 - tq) + ')', 2); }
     var list = W.props.slice();
-    W.npcs.forEach(function (n) { if (n.pose !== 'hidden') list.push({ k: n.x + n.y + (n.dk || 0), n: n }); });
-    list.push({ k: p.x + p.y, n: p });
+    if (W.flat) list = list.map(function (it) { if (it.ay == null) W.measure(it); return { k: it.k <= -100 || it.k >= 1e4 ? it.k : it.ay, d: it.d }; });
+    W.npcs.forEach(function (n) { if (n.pose !== 'hidden') list.push({ k: (W.flat ? n.y : n.x + n.y) + (n.dk || 0), n: n }); });
+    list.push({ k: W.flat ? p.y : p.x + p.y, n: p });
     list.sort(function (a, b) { return a.k - b.k; });
     for (var i = 0; i < list.length; i++) {
       var it = list[i];
@@ -397,21 +421,21 @@
     // маркеры заданий над людьми
     W.npcs.forEach(function (n) {
       if (!n.mark || n.pose === "hidden") return;
-      var a = W.iso(n.x, n.y, (n.z || 0) + (n.pose === "sit" ? 62 : 72)), sc = W.toScreen(a[0], a[1]), by = sc[1] - 10 + Math.sin(W.t * 3 + (n.look && n.look.seed || 0)) * 3;
+      var a = W.lift(n, n.pose === "sit" ? 62 : 72), sc = W.toScreen(a[0], a[1]), by = sc[1] - 10 + Math.sin(W.t * 3 + (n.look && n.look.seed || 0)) * 3;
       c.fillStyle = "rgba(0,0,0,.25)"; c.beginPath(); c.arc(sc[0] + 1, by + 2, 11, 0, 7); c.fill();
       c.fillStyle = n.mark === "!" ? "#FFD447" : "#FFFFFF"; c.beginPath(); c.arc(sc[0], by, 11, 0, 7); c.fill();
       c.strokeStyle = "#E62020"; c.lineWidth = 2.5; c.stroke();
       c.fillStyle = "#E62020"; c.font = "800 14px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(n.mark, sc[0], by + 1);
     });
     if (W.near && W.near.look && W.near.talkable) {
-      var nn = W.near, na = W.iso(nn.x, nn.y, (nn.z || 0) + (nn.pose === "sit" ? 50 : 60)), ns = W.toScreen(na[0], na[1]);
+      var nn = W.near, na = W.lift(nn, nn.pose === "sit" ? 50 : 60), ns = W.toScreen(na[0], na[1]);
       c.font = "700 11px " + FONT; var nw = c.measureText(nn.name || "").width + 16;
       c.fillStyle = "rgba(28,19,19,.85)"; rr(c, ns[0] - nw / 2, ns[1] - (nn.mark ? 46 : 24), nw, 20, 10); c.fill();
       c.fillStyle = "#FFFFFF"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(nn.name || "", ns[0], ns[1] - (nn.mark ? 36 : 14));
     }
     // реплики
     W.bubbles.forEach(function (b) {
-      var n = b.n, a = W.iso(n.x, n.y, (n.z || 0) + (n.pose === 'sit' ? 48 : n.pose === 'hidden' ? 30 : 58)), sc = W.toScreen(a[0], a[1]);
+      var n = b.n, a = W.lift(n, n.pose === 'sit' ? 48 : n.pose === 'hidden' ? 30 : 58), sc = W.toScreen(a[0], a[1]);
       var lines = wrap(b.text, 26); c.font = '600 12px ' + FONT;
       var w = Math.max.apply(null, lines.map(function (l) { return c.measureText(l).width; })) + 18, h = lines.length * 15 + 12;
       var x = Math.max(6, Math.min(W.vw - w - 6, sc[0] - w / 2)), y = sc[1] - h - 12;

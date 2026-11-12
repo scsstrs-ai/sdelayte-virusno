@@ -27,6 +27,8 @@
 .kv-items{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .kv-items span{background:#1C1313;color:#fff;border-radius:99px;padding:3px 9px;font-size:11px;font-weight:700}
 .kv-log.min ul,.kv-log.min .kv-tip,.kv-log.min .kv-items,.kv-log.min .kv-sub{display:none}
+.kv-log.min h4::after{content:" ▾";color:#E62020}
+.kv-log:not(.min) h4::after{content:" ▴";color:#E62020}
 
 .kv-dlg{position:absolute;left:12px;right:12px;bottom:12px;z-index:9;max-width:780px;margin:0 auto;background:var(--panel);color:var(--panel-ink);border-radius:20px;box-shadow:0 16px 40px rgba(0,0,0,.38);padding:14px 16px 14px;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;max-height:min(70%,560px);overflow:auto;animation:kvIn .18s ease-out}
 @keyframes kvIn{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}

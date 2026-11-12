@@ -24,8 +24,8 @@
     var stage = document.getElementById('stage'), cv = document.getElementById('cv'), actBtn = document.getElementById('act');
 
     var W = new Iso.World({
-      canvas: cv, stage: stage, cols: side.cols, rows: side.rows, ext: 0, top: 110, start: [1, 1],
-      minZoom: (window.innerWidth > 700 ? 0.74 : 0.66), maxZoom: 1.1, font: K.FONT,
+      canvas: cv, stage: stage, cols: side.cols, rows: side.rows, ext: 0, top: 110, start: [1, 1], flat: true, ts: 48, zk: 0.75,
+      minZoom: (window.innerWidth > 700 ? 0.92 : 0.62), maxZoom: 1.2, font: K.FONT,
       blocked: function () { return dlgOpen || K.cardOpen() || K.bossOn(); },
       onNear: function (s) {
         if (!s || dlgOpen) { actBtn.hidden = true; return; }
@@ -51,7 +51,7 @@
     function save() { if (run && !run.over) K.set(runKey, run); }
 
     // ——— интерфейс ———
-    var log = el('div', 'kv-log'); log.hidden = true; stage.appendChild(log);
+    var log = el('div', 'kv-log' + (window.innerWidth < 600 ? ' min' : '')); log.hidden = true; stage.appendChild(log);
     log.addEventListener('click', function () { log.classList.toggle('min'); });
     var dlg = el('div', 'kv-dlg'); dlg.hidden = true; stage.appendChild(dlg);
     var dlgOpen = false, curPick = null, curCount = 0, quiz = null;

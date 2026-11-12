@@ -37,7 +37,7 @@
     };
     F.floorText = function (c, x, y, text, color) {
       var p = W.iso(x, y);
-      c.save(); c.transform(1, 0.5, -1, 0.5, p[0], p[1]);
+      c.save(); if (W.flat) c.transform(1, 0, 0, 1, p[0], p[1]); else c.transform(1, 0.5, -1, 0.5, p[0], p[1]);
       c.font = '800 13px ' + FONT; c.fillStyle = color || 'rgba(28,19,19,.22)'; c.textAlign = 'left'; c.textBaseline = 'middle';
       c.fillText(text, 0, 0); c.restore();
     };

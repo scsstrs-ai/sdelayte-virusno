@@ -20,8 +20,8 @@
       'h:5:8', 'v:7:11', 'h:6:14', 'v:8:12', 'v:14:12', 'h:12:14', 'h:17:9', 'v:15:11', 'h:20:14', 'v:5:16'].forEach(function (k) { DOORS[k] = 1; });
 
     // ——— помощники рисования ———
-    function onX(x, y, z, fn) { var c = W.ctx, p = W.iso(x, y, z); c.save(); c.transform(1, 0.5, 0, 1, p[0], p[1]); fn(c); c.restore(); } // плоскость y=const, ось u вдоль +x (32 px на клетку)
-    function onY(x, y, z, fn) { var c = W.ctx, p = W.iso(x, y, z); c.save(); c.transform(1, -0.5, 0, 1, p[0], p[1]); fn(c); c.restore(); } // плоскость x=const, ось u вдоль −y
+    function onX(x, y, z, fn) { var c = W.ctx, p = W.iso(x, y, z); c.save(); if (W.flat) c.transform(W.TS / 32, 0, 0, W.ZK, p[0], p[1]); else c.transform(1, 0.5, 0, 1, p[0], p[1]); fn(c); c.restore(); } // плоскость y=const, ось u вдоль +x (32 px на клетку)
+    function onY(x, y, z, fn) { if (W.flat) return; var c = W.ctx, p = W.iso(x, y, z); c.save(); c.transform(1, -0.5, 0, 1, p[0], p[1]); fn(c); c.restore(); } // плоскость x=const, ось u вдоль −y
     function txt(c, s, x, y, font, col, align) { c.font = font; c.fillStyle = col; c.textAlign = align || 'left'; c.textBaseline = 'middle'; c.fillText(s, x, y); }
     // рисунок на низкой внутренней стене: режем по клеткам, чтобы каждый кусок шёл сразу после своего отрезка стены
     function wallArt(axis, a0, a1, at, z0, z1, draw) {
